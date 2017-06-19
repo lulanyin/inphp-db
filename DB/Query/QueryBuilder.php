@@ -5,7 +5,7 @@
  * Time: PM5:59
  */
 namespace DB\Query{
-    class Query{
+    class QueryBuilder{
 
     }
 }
