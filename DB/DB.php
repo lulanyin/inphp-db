@@ -290,7 +290,7 @@ namespace DB{
             if(!empty($text)){
                 $f = fopen(__DIR__."/Log/error.txt", "a");
                 if($f){
-                    @fwrite($f, $text);
+                    @fwrite($f, "时间：".date("Y/m/d H:i:s")."  ".$text);
                     @fclose($f);
                 }
             }

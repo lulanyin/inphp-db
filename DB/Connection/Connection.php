@@ -23,6 +23,7 @@ namespace DB\Connection{
         public $errorId = 0;
         public $rowCount = 0;
         public $inTransaction = false;
+        public $errorDisplay = [];
 
         public function __construct(array $config){
             //读
@@ -46,6 +47,7 @@ namespace DB\Connection{
             $this->driver = isset($config["driver"]) ? $config["driver"] : "mysql";
             $this->database[$type] = isset($config["database"]) ? $config["database"] : "z_db";
             $this->prefix[$type] = isset($config["prefix"]) ? $config["prefix"] : "db_";
+            $this->errorDisplay[$type] = isset($config["error_display"]) ? $config["error_display"] : false;
             $username = isset($config["user"]) ? $config["user"] : $this->database[$type];
             $password = isset($config["pass"]) ? $config["pass"] : "";
             $host = isset($config["host"]) ? $config["host"] : "127.0.0.1";
@@ -82,12 +84,12 @@ namespace DB\Connection{
                 $this->pdo[$type]->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);//这个不是必须的，但是建议加上，这样在脚本出错时，不会停止运行，而是会抛出异常！
                 $this->success = true;
             }catch (PDOException $e){
-                $this->connectFail($e);
+                $this->connectFail($e, $type);
             }
         }
 
-        private function connectFail(PDOException $e){
-            DB::log($e->getMessage());
+        private function connectFail(PDOException $e, $type){
+            DB::log($e->getMessage(), $this->errorDisplay[$type]);
         }
 
         /**

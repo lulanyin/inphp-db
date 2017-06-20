@@ -16,7 +16,9 @@ $connect = new \DB\Connection\Connection([
     'pass' => '123456',
     'database' => 'no498',
     'prefix' => 'n_',
+    'error_display' => true
 ]);
+//事件回滚测试，在第二部分开始故意写错，或者写正确，不提交，测试！
 $pdo = $connect->getPdo('write');
 $pdo->beginTransaction();
 $now = time();
