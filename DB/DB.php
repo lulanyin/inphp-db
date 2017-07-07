@@ -8,6 +8,7 @@ namespace DB{
 
     use DB\Connection\Connection;
     use DB\Query\QueryBuilder;
+    use PDO;
 
     class DB{
         /**
@@ -241,12 +242,12 @@ namespace DB{
         /**
          * 获取连接
          * @param string $name
-         * @return Connection|void
+         * @return Connection
          */
         public static function getConnection($name='default'){
             $connection = isset(self::$connections[$name]) ? self::$connections[$name] : false;
             if(!$connection){
-                exit('undefined connection');
+                exit('数据库没有连接');
             }
             return $connection;
         }
