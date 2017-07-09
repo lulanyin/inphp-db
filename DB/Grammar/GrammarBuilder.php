@@ -6,6 +6,7 @@
  */
 namespace DB\Grammar{
 
+    use DB\DB;
     use DB\Query\QueryBuilder;
     use PDO;
     use PDOException;
@@ -166,8 +167,8 @@ namespace DB\Grammar{
                         break;
                 }
             }catch (PDOException $e){
-                $this->query->setError($e->getMessage(), $e->getCode());
-                Log::log("Query : {$queryString}\r\nError : ".$e->getMessage()."\r\n", 'sql');
+                $this->query->connection->setError($e->getMessage(), $e->getCode());
+                DB::log("Query : {$queryString}\r\nError : ".$e->getMessage()."\r\n", $this->query->connection->errorDisplay['read']);
                 return false;
             }
             return $this;

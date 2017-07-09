@@ -174,7 +174,7 @@ namespace DB\Query{
                 $as = $newQuery->joinAs;
                 if(empty($as)){
                     DB::log("关联查询时时，缺少别名声明", $this->connection->errorDisplay['read']);
-                    DB::log("\r\n对应部分SQL语句：{$queryString}");
+                    DB::log("\r\n对应部分SQL语句：{$queryString}", $this->connection->errorDisplay['read']);
                 }
                 $table = "({$queryString}) {$as}";
                 $status = "nested";
@@ -809,9 +809,11 @@ namespace DB\Query{
          * @return string
          */
         public function pluck($column){
-            $this->columns = [$column];
+            $select = str_replace(".", "`.`", $column);
+            $select = "`{$select}` pluck_field";
+            $this->columns = [$select];
             $firstRow = $this->first();
-            return isset($firstRow[$column]) ? $firstRow[$column] : "";
+            return isset($firstRow["pluck_field"]) ? $firstRow["pluck_field"] : "";
         }
 
         /**

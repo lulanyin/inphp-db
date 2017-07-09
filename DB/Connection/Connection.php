@@ -138,5 +138,10 @@ namespace DB\Connection{
             $this->inTransaction = false;
         }
 
+        public function setError($message, $code){
+            $this->error = $message;
+            $this->errorId = $code;
+        }
+
     }
 }

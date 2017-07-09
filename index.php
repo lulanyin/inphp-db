@@ -5,19 +5,31 @@
  * Time: PM5:19
  */
 require_once "./inc.config.php";
-//引用
 use DB\DB;
 //开始使用 DB
-$connect = new \DB\Connection\Connection([
+$connect =[
     'driver' => 'mysql',
     'host' => '127.0.0.1',
     'port' => '3306',
     'user' => 'root',
-    'pass' => '123456',
-    'database' => 'no498',
-    'prefix' => 'n_',
+    'pass' => 'root',
+    'database' => 'zhushou',
+    'prefix' => 'm_',
     'error_display' => true
-]);
+];
+DB::init($connect);
+
+$db = DB::from('user u')->where('u.uid', '>', 15)
+    ->whereExists(function ($q){
+        $q->from("kmplayer");
+    });
+echo $db->compileToQueryString()."\r\n";
+print_r($db);
+
+
+
+
+exit;
 //事件回滚测试，在第二部分开始故意写错，或者写正确，不提交，测试！
 $pdo = $connect->getPdo('write');
 $pdo->beginTransaction();

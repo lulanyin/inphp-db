@@ -296,6 +296,7 @@ namespace DB{
                 }
             }
             if($output){
+                $text = str_replace("\r\n", "<br>", $text);
                 exit("<font style='font-size:12px;'>{$text}</font>");
             }
         }
