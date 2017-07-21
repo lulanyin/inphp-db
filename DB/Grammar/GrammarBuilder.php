@@ -26,6 +26,11 @@ namespace DB\Grammar{
          * @var PDO
          */
         protected $pdo_write;
+        /**
+         * SQL预处理参数化的参数值
+         * @var array
+         */
+        public $params = [];
 
         public function __construct(QueryBuilder $query){
             $this->query        = $query;
