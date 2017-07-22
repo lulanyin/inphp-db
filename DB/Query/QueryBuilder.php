@@ -156,8 +156,8 @@ namespace DB\Query{
             $as = "";
             if($tableName instanceof QueryBuilder){
                 //->join(DB::from(''))...
-                $queryString = $tableName->compileToQueryString();
-                $this->whereParamValues = array_merge($this->whereParamValues, $tableName->whereParamValues);
+                list($queryString, $params) = $tableName->compileToQueryString();
+                $this->grammar->flushParams($params);
                 $as = $tableName->joinAs;
                 if(empty($as)){
                     DB::log("关联查询时时，缺少别名声明", $this->connection->errorDisplay['read']);
@@ -169,8 +169,8 @@ namespace DB\Query{
                 //->join(function($newQuery){ ... })
                 $newQuery = $this->newQuery();
                 call_user_func($tableName, $newQuery);
-                $queryString = $newQuery->compileToQueryString();
-                $this->whereParamValues = array_merge($this->whereParamValues, $newQuery->whereParamValues);
+                list($queryString, $params) = $newQuery->compileToQueryString();
+                $this->grammar->flushParams($params);
                 $as = $newQuery->joinAs;
                 if(empty($as)){
                     DB::log("关联查询时时，缺少别名声明", $this->connection->errorDisplay['read']);
@@ -591,11 +591,10 @@ namespace DB\Query{
         /**
          * 解析成SQL语句
          * @param string $type
-         * @return string
+         * @return array
          */
         public function compileToQueryString($type='select'){
-            $query = $this->grammar->compileToQueryString($type);
-            return is_array($query) ? reset($query) : $query;
+            return $this->grammar->compileToQueryString($type);
         }
 
         /**
@@ -611,7 +610,8 @@ namespace DB\Query{
         public function getArray($total=1000, $offset=0){
             $rs = $this->get($total, $offset);
             if(!$rs){
-                exit("SQL 语法错误 : ".$this->compileToQueryString());
+                list($queryString, $params) = $this->compileToQueryString();
+                DB::log("SQL 语法错误：{$queryString}\r\n参数：{".implode(",",$params)."}\r\n", $this->connection->errorDisplay['read']);
             }
             return $this->toArray();
         }
@@ -718,6 +718,17 @@ namespace DB\Query{
         }
 
         /**
+         * 当条件数据不存在时，插入数据
+         * @return QueryBuilder|bool
+         */
+        public function insertIfNotExists(){
+            if($this->grammar->insertIfNotExists()){
+                return $this;
+            }
+            return false;
+        }
+
+        /**
          * 插入数据并返回自增ID，失败时返回0
          * @param null $set
          * @return array|int|mixed
@@ -735,7 +746,7 @@ namespace DB\Query{
          * @return array|int|mixed
          */
         public function getLastInsertId(){
-            return count($this->lastInsertId) > 1 ? $this->lastInsertId : (!empty($this->lastInsertId) ? end($this->lastInsertId) : 0);
+            return count($this->lastInsertId)>1 ? $this->lastInsertId : (!empty($this->lastInsertId) ? end($this->lastInsertId) : 0);
         }
 
         /**
