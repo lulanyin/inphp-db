@@ -1,17 +1,13 @@
 <?php
-/**
- * Created by PhpStorm.
- * Date: 2017/6/17
- * Time: PM5:59
- */
 namespace DB\Grammar{
 
-    use DB\DB;
     use DB\Query\QueryBuilder;
     use PDO;
+    use DB\DB;
     use PDOException;
 
     class GrammarBuilder{
+
         /**
          * @var QueryBuilder
          */
@@ -31,6 +27,20 @@ namespace DB\Grammar{
          * @var array
          */
         public $params = [];
+        public $tempParams = [];
+        /**
+         * 用于预处理
+         * @var \PDOStatement | null
+         */
+        public $statement = null;
+        /**
+         * PDO是查询还是增删改
+         * @var string
+         */
+        public $pdoModel = 'read';
+
+        public $total = null;
+        public $offset = 0;
 
         public function __construct(QueryBuilder $query){
             $this->query        = $query;
@@ -48,21 +58,31 @@ namespace DB\Grammar{
         }
 
         /**
-         * 获取查询结果
-         * @param int $total
+         * 查询获取数据
+         * @param null $total
          * @param int $offset
          * @return array|bool
          */
-        public function get($total = 1000, $offset = 0)
-        {
-            $queryString = $this->compileToQueryString();
-            $queryString .= " limit {$offset},{$total}";
+        public function get($total=null, $offset=0){
+            $this->total = $total;
+            $this->offset = $offset;
+            list($queryString, $params) = $this->compileToQueryString();
+            $this->flushParams($params);
+            if(!is_null($total)){
+                $queryString .= " limit {$offset},{$total}";
+            }
             $self = $this;
-            $read_pdo = $self->query->connection->getPdo('read');
+            $read_pdo = $this->getPdo();
             try{
-                $result = $read_pdo->query($queryString);
-                $result->setFetchMode($this->query->fetchModel);
-                return $result->fetchAll();
+                $this->statement = $read_pdo->prepare($queryString);
+                $this->bindValues();
+                if($this->statement->execute()){
+                    $this->statement->setFetchMode($this->query->fetchModel);
+                    return $this->statement->fetchAll();
+                }else{
+                    $code = intval($this->statement->errorCode());
+                    throw new PDOException($this->statement->errorInfo()[2]."<br>query : ".$this->statement->queryString."<br>code source : ".$code, intval($code));
+                }
             }catch(PDOException $e){
                 $self->query->error = "code : ".$e->getCode()."<br>error : ".$e->getMessage()."<br>query : ".$queryString;
                 $self->query->errorId = $e->getCode();
@@ -71,180 +91,198 @@ namespace DB\Grammar{
         }
 
         /**
-         * 查询数据量
-         * @param string $queryString
+         * 获取记录条数
          * @return int
          */
-        public function count($queryString=''){
+        public function count(){
             $columns = $this->query->columns;
             $this->query->columns = ["count('')"];
-            $queryString = !empty($queryString) ? $queryString : $this->compileToQueryString();
+            list($queryString, $params) = $this->compileToQueryString();
+            $this->flushParams($params);
             $this->query->columns = $columns;
-            if($statement = $this->read_pdo->query($queryString)){
-                //return $statement->rowCount();
-                $result = $statement->fetchAll();
-                return !empty($result) ? end($result)[0] : 0;
+            $read_pdo = $this->getPdo();
+            if($this->statement = $read_pdo->prepare($queryString)){
+                $this->bindValues();
+                $this->statement->execute();
+                $result = $this->statement->fetchAll();
+                return !empty($result) && is_array($result) ? end($result)[0] : 0;
             }else{
                 return 0;
             }
         }
 
         /**
-         * 执行 INSERT INTO 语句
+         * 执行更改，更改仅一条语句，不成功就是失败，不需要在此定义事务
          * @return bool|GrammarBuilder
          */
-        public function insert()
-        {
-            // TODO: Implement insert() method.
-            $query = $this->compileToQueryString('insert');
-            //print_r($query);exit();
-            $this->query->connection->beginTransaction();
-            foreach($query as $q){
-                list($queryString, $params) = $q;
-                if(!$this->execute($queryString, 'insert', $params)){
-                    $this->query->connection->rollBack();
+        public function update(){
+            return $this->execute('update');
+        }
+
+        /**
+         * 执行插入，插入涉及到多各插入，需要在发生错误时回滚
+         * @return bool|GrammarBuilder
+         */
+        public function insert(){
+            list($queryString, $params) = $this->compileToQueryString('insert');
+            $this->beginTransaction();
+            foreach ($queryString as $key=>$q){
+                if(!$this->execute('insert', $q, isset($params[$key]) ? $params[$key] : [])){
+                    $this->rollBack();
                     return false;
                 }
             }
-            $this->query->connection->commit();
+            $this->commit();
             return $this;
         }
 
         /**
-         * 执行 UPDATE 语句
+         * 执行删除，更改仅一条语句，不成功就是失败，不需要在此定义事务
          * @return bool|GrammarBuilder
          */
-        public function update()
-        {
-            // TODO: Implement update() method.
-            list($queryString, $params) = $this->compileToQueryString('update');
-            return $this->execute($queryString, 'update', $params);
+        public function delete(){
+            return $this->execute('delete');
         }
 
         /**
-         * 执行 DELETE 语句
+         * 执行条件式插入，当条件数据不存在时插入，仅可插入一条记录，不成功就是失败，不需要在此定义事务
          * @return bool|GrammarBuilder
          */
-        public function delete()
-        {
-            // TODO: Implement delete() method.
-            $queryString = $this->compileToQueryString('delete');
-            return $this->execute($queryString, 'delete');
+        public function insertIfNotExists(){
+            return $this->execute('insert where not exists');
         }
 
         /**
-         * 执行SQL语句
+         * 清空表，重新定义自增 ID
+         * @return bool|GrammarBuilder
+         */
+        public function truncate(){
+            return $this->execute('truncate');
+        }
+
+        /**
+         * 执行增删改
+         * @param $type
          * @param $queryString
-         * @param string $type
-         * @param array $params
-         * @return GrammarBuilder|bool
+         * @param $params
+         * @return bool | GrammarBuilder
          */
-        public function execute(&$queryString, $type, array $params = [])
-        {
-            // TODO: Implement execute() method.
-            $write_pdo = $this->query->connection->getPdo('write');
+        public function execute($type, $queryString=null, $params=null){
+            if(is_null($queryString) && is_null($params)){
+                list($queryString, $params) = $this->compileToQueryString($type);
+            }
+            $this->flushParams($params);
+            $write_pdo = $this->getPdo('write');
             try{
-                switch($type){
-                    case "delete" :
-                        $affectRows = $write_pdo->exec($queryString);
-                        if($affectRows===false){
-                            throw new PDOException($write_pdo->errorInfo()[2]."<br>query : {$queryString}<br>code source : ".$write_pdo->errorCode(), intval($write_pdo->errorCode()));//注意，errorCode()有可能不是一个数字，所以要强制转换
-                        }else{
-                            $this->query->affectRows += $affectRows;
-                        }
-                        break;
-                    case "update" :
-                    case "insert" :
-                    case "truncate" :
-                        $statement = $write_pdo->prepare($queryString);
-                        if($statement->execute($params)){
-                            if($type=='insert'){
-                                $this->query->lastInsertId[] = $write_pdo->lastInsertId();
-                            }
-                            $this->query->affectRows += $statement->rowCount();
-                        }else{
-                            $code = $statement->errorCode();
-                            throw new PDOException($statement->errorInfo()[2]."<br>query : ".$statement->queryString."<br>code source : ".$code, intval($code));
-                        }
-                        break;
-                    default :
-                        throw new PDOException("error type", 38);
-                        break;
+                $this->statement = $write_pdo->prepare($queryString);
+                $this->bindValues();
+                if($this->statement->execute()){
+                    $this->query->affectRows += $this->statement->rowCount();
+                    if(strripos($type, 'insert')===0){
+                        $this->query->lastInsertId[] = $write_pdo->lastInsertId();
+                    }
+                }else{
+                    $code = intval($this->statement->errorCode());
+                    throw new PDOException($this->statement->errorInfo()[2]."<br>query : ".$this->statement->queryString."<br>code source : ".$code, intval($code));
                 }
             }catch (PDOException $e){
                 $this->query->connection->setError($e->getMessage(), $e->getCode());
-                DB::log("Query : {$queryString}\r\nError : ".$e->getMessage()."\r\n", $this->query->connection->errorDisplay['read']);
+                DB::log("Query : {$queryString}\r\nError : ".$e->getMessage()."\r\n", $this->query->connection->errorDisplay['write']);
                 return false;
             }
             return $this;
         }
 
         /**
-         * 重置表
-         * @return bool|GrammarBuilder
+         * 开始事务（外部未定义事务时，才开始）
          */
-        public function truncate(){
-            $tableName = $this->compileTable('write');
-            $queryString = "truncate table {$tableName}";
-            return $this->execute($queryString, 'truncate');
+        public function beginTransaction(){
+            if(!$this->query->connection->inTransaction){
+                $this->pdo_write->beginTransaction();
+            }
         }
 
         /**
-         * 解析完整的sql语句
-         * @param string $type
-         * @return string | array
+         * 事务回滚（外部未定义事务时，才回滚）
          */
-        public function compileToQueryString($type = 'select')
-        {
-            // TODO: Implement compileToQueryString() method.
+        public function rollback(){
+            if(!$this->query->connection->inTransaction){
+                $this->pdo_write->rollBack();
+            }
+        }
+
+        /**
+         * 提交事务（外部未定义事务时，才提交）
+         */
+        public function commit(){
+            if(!$this->query->connection->inTransaction){
+                $this->pdo_write->commit();
+            }
+        }
+
+        /**
+         * 编译查询语句
+         * @param string $type
+         * @return array
+         */
+        public function compileToQueryString($type='select'){
+            $this->pdoModel = $type=='select' ? 'read' : 'write';
             $tableName = $this->compileTable($type=='select' ? 'read' : 'write');
-            switch($type){
+            switch ($type){
                 case "delete" :
-                    $where = $this->compileWhere($type);
-                    $where = !empty($where) ? " where {$where}" : "";
-                    return "delete from {$tableName}{$where}";
+                    //删除, 暂时实现基础的语句： delete from {table name}{where}
+                    list($where, $params) = $this->compileWhere();// where里边包含了语句和参数
+                    $this->tempParams = array_merge($this->tempParams, $params);
+                    $queryString = "delete from {$tableName}{$where}";
                     break;
                 case "update" :
-                    $where = $this->compileWhere($type);
-                    $where = !empty($where) ? " where {$where}" : "";
-                    list($columns, $values) = $this->compileSet($type);
-                    return ["update {$tableName} set {$columns}{$where}", $values];
+                    //更新，暂时实现基础的语句：update {table name} set {columns} {where}
+                    list($columns, $params1) = $this->compileSet($type);
+                    $this->tempParams = array_merge($this->tempParams, $params1);
+                    list($where, $params2) = $this->compileWhere();// where里边包含了语句和参数
+                    $this->tempParams = array_merge($this->tempParams, $params2);
+                    $queryString = "update {$tableName} set {$columns}{$where}";
+                    $params = array_merge($params1, $params2);
                     break;
                 case "insert" :
-                    $inserts = $this->compileSet($type);
-                    $query = [];
-                    foreach($inserts as $ins){
-                        list($columns, $values, $params) = $ins;
-                        $query[] = ["insert into {$tableName} ({$columns}) values ({$values})", $params];
+                    //插入，insert into {table name}(columns) values({$values})
+                    list($columns, $values, $params) = $this->compileSet($type);
+                    $this->tempParams = array_merge($this->tempParams, $params);
+                    $queryString = [];
+                    foreach ($columns as $key=>$c){
+                        $queryString[] = "insert into {$tableName} {$c} values {$values[$key]};";
                     }
-                    return $query;
+                    break;
+                case "insert where not exists" :
+                    //插入数据，当记录不存在时
+                    //insert into {table name}(columns) select {values} from TEMP1 where not exists(select {table name}{where})
+                    list($columns, $values, $params1) = $this->compileSet($type);
+                    $this->tempParams = array_merge($this->tempParams, $params1);
+                    list($where, $params2) = $this->compileWhere();// where里边包含了语句和参数
+                    $this->tempParams = array_merge($this->tempParams, $params2);
+                    $queryString = "insert into {$tableName} {$columns} select {$values} from TEMP1 where not exists(select * from {$tableName}{$where});";
+                    $params = array_merge($params1, $params2);
+                    break;
+                case "truncate" :
+                    $queryString = "truncate table {$tableName}";
+                    $params = [];
                     break;
                 default :
-                    $columns = $this->compileColumns();
-                    $join = $this->compileJoin();
-                    $where = $this->compileWhere($type);
-                    $where = !empty($where) ? " where {$where}" : "";
-                    $groupBy = $this->compileGroupBy();
-                    $orderBy = $this->compileOrderBy();
-                    $having = $this->compileHaving();
-                    $union = $this->compileUnion();
-                    return "select {$columns} from {$tableName}{$join}{$where}{$groupBy}{$orderBy}{$having}{$union}";
+                    //默认查询
+                    $columns    = $this->compileColumns();
+                    $join       = $this->compileJoin();
+                    list($where, $params1) = $this->compileWhere();
+                    $this->tempParams = array_merge($this->tempParams, $params1);
+                    $groupBy    = $this->compileGroupBy();
+                    $orderBy    = $this->compileOrderBy();
+                    $having     = $this->compileHaving();
+                    list($union, $params2) = $this->compileUnion();
+                    $this->tempParams = array_merge($this->tempParams, $params2);
+                    $queryString = "select {$columns} from {$tableName}{$join}{$where}{$groupBy}{$orderBy}{$having}{$union}";
+                    $params = array_merge($params1, $params2);
                     break;
             }
-        }
-
-        /**
-         * 解析要查询的字段
-         * @return string
-         */
-        public function compileColumns(){
-            $columns = $this->query->columns;
-            $columnString = join(",", $columns);
-            if((strripos($columnString, '*')>0 || strripos($columnString, '*')===0) && !strripos($columnString, '.*')){
-                return "*";
-            }else{
-                return $columnString;
-            }
+            return [$queryString, $params];
         }
 
         /**
@@ -263,204 +301,212 @@ namespace DB\Grammar{
         }
 
         /**
-         * 解析 JOIN
+         * 编译查询的字段
          * @return string
          */
-        public function compileJoin(){
+        private function compileColumns(){
+            $columns = $this->query->columns;
+            $columnString = join(",", $columns);
+            if((strripos($columnString, '*')>0 || strripos($columnString, '*')===0) && !strripos($columnString, '.*')){
+                return "*";
+            }else{
+                return $columnString;
+            }
+        }
+
+        /**
+         * 编译关联查询
+         * @return string
+         */
+        private function compileJoin(){
             $joins = $this->query->joins;
             $string = [];
             foreach($joins as $j){
                 if(!empty($j['table'])){
                     $table = $this->compileTable('read', $j['table']);
-                    $string[] = " {$j['type']} join {$table}".($j['status']=='nested' ? $j['as'] : '')." on {$j['column']}{$j['operator']}{$j['value']}";
+                    $column = $j['on'][0];
+                    $operator = isset($j['on'][2]) ? $j['on'][1] : '=';
+                    $value = isset($j['on'][2]) ? $j['on'][2] : $j['on'][1];
+                    $string[] = " {$j['type']} join {$table}".($j['status']=='nested' ? $j['as'] : '')." on {$column}{$operator}{$value}";
                 }
             }
             return join("", $string);
         }
-
         /**
-         * 将条件解析成字符串
-         * @param string $type
-         * @return string
+         * 编译 where 条件
+         * @return array
          */
-        public function compileWhere($type='select'){
-            $wheres = $this->query->wheres;
+        public function compileWhere(){
             $string = [];
-            foreach($wheres as $w){
-                switch($w['type']){
+            foreach ($this->query->wheres as $where){
+                switch ($where['type']){
                     case "Sub" :
-                        if(isset($w['query']) && $w['query'] instanceof QueryBuilder){
-                            $sqlStr = $w['query']->compileToQueryString();
+                        if(isset($where['query']) && $where['query'] instanceof QueryBuilder){
+                            list($queryString, $params) = $where['query']->compileToQueryString();
                             $string[] = [
-                                'string' => !empty($sqlStr) ? "({$sqlStr})" : "",
-                                'boolean' => $w['boolean']
+                                'string' => !empty($queryString) ? "({$queryString})" : "",
+                                'boolean' => $where['boolean'],
+                                "params" => $params
                             ];
                         }
                         break;
                     case "Nested" :
-                        $sqlStr = $this->compileWhereNested($w);
+                        list($queryString, $params) = $this->compileWhereNested($where);
                         $string[] = [
-                            'string' => !empty($sqlStr) ? "({$sqlStr})" : "",
-                            'boolean' => $w['boolean']
+                            'string' => !empty($queryString) ? "({$queryString})" : "",
+                            'boolean' => $where['boolean'],
+                            "params" => $params
                         ];
                         break;
                     case "Raw" :
                         $string[] = [
-                            'string' => !empty($w['sql']) ? $w['sql'] : "",
-                            'boolean' => $w['boolean']
+                            'string' => !empty($where['sql']) ? $where['sql'] : "",
+                            'boolean' => $where['boolean'],
+                            'params' => []
                         ];
                         break;
                     default :
-                        $string[] = $this->compileWhereString($w);
+                        $string[] = $this->compileWhereString($where);
                         break;
                 }
             }
             if(!empty($string)){
-                $whereString = [];
+                $whereString = $params = [];
                 foreach($string as $key=>$str){
                     if(!empty($str['string'])){
+                        //条件 or / and
                         $boolean = strtolower($str['boolean']);
                         $boolean = in_array($boolean, ['or', 'and']) ? $boolean : 'and';
+                        //条件语句
                         $whereString[] = ($key===0 ? "" : (!empty($whereString[$key-1]) ? " " : "").$boolean." ").$str['string'];
+                        //参数化的值合并
+                        if(!empty($str['params'])){
+                            $params = array_merge($params, $str['params']);
+                        }
                     }
                 }
-                return !empty($whereString) ? join("", $whereString) : "";
+                $where = !empty($whereString) ? (" where ".join("", $whereString)) : null;
+                return [$where, $params];
             }
-            return "";
+            return [null, []];
+
+        }
+
+        /**
+         * 多重查询条件
+         * @param $where
+         * @return array
+         */
+        public function compileWhereNested($where){
+            if(isset($where['query']) && ($where['query'] instanceof QueryBuilder)){
+                return $where['query']->grammar->compileWhere();
+            }
+            return [null, null];
         }
 
         /**
          * 将条件解析成字符串
          * @param array $where
-         * @param $type
          * @return array
          */
-        private function compileWhereString(array $where, $type='select'){
+        private function compileWhereString(array $where){
             switch($where['type']){
                 case "NotIn" :
                 case "In" :
                     if(isset($where['query']) && ($where['query'] instanceof QueryBuilder)){
-                        $value = $where['query']->compileToQueryString();
+                        list($value, $params) = $where['query']->compileToQueryString();
                     }else{
+                        $params = [];
                         $value = $where['value'];
-                        $value = is_array($value) || is_object($value) ? join(",", $value) : $value;
+                        $value = is_array($value) || is_object($value) ? $value : explode(",", $value);
+                        $string = [];
+                        foreach ($value as $key=>$val){
+                            $fieldName = $this->getTempParamName($where['column']."_".$key);
+                            $params[$fieldName] = $val;
+                            $string[] = ":{$fieldName}";
+                        }
+                        $value = join(",", $string);
                     }
                     return [
                         "string" => "{$where['column']} ".($where['type']=='NotIn' ? 'not ' : '')."in ({$value})",
-                        "boolean" => $where['boolean']
+                        "boolean" => $where['boolean'],
+                        'params' => $params
                     ];
                     break;
                 case "Null" :
                 case "NotNull" :
                     return [
                         "string" => "{$where['column']} is ".($where['type']=='NotNull' ? "not " : "")."null",
-                        "boolean" => $where['boolean']
+                        "boolean" => $where['boolean'],
+                        'params' => []
                     ];
                     break;
                 case "NotBetween" :
                 case "Between" :
+                    $params = [];
                     $value = $where['value'];
-                    $value = is_array($value) ? join(" and ", $value) : $value;
+                    $value = is_array($value) ? $value : explode(" and ", $value);
+                    $fieldName1 = $this->getTempParamName($where['column']."_1");
+                    $fieldName2 = $this->getTempParamName($where['column']."_2");
+                    $params[$fieldName1] = $value[0];
+                    $params[$fieldName2] = $value[1];
+                    $value = ":{$fieldName1} and :{$fieldName2}";
                     return [
                         "string" => "{$where['column']} ".($where['type']=='NotBetween' ? "not " : "")."between {$value}",
-                        "boolean" => $where['boolean']
+                        "boolean" => $where['boolean'],
+                        'params' => $params
                     ];
                     break;
                 case "NotExists" :
                 case "Exists" :
                     if(isset($where['query']) && ($where['query'] instanceof QueryBuilder)){
-                        $value = $where['query']->compileToQueryString();
+                        list($value, $params) = $where['query']->compileToQueryString();
                         return [
                             "string" => ($where['type']=='NotExists' ? 'not ' : '')."exists ({$value})",
-                            "boolean" => $where['boolean']
+                            "boolean" => $where['boolean'],
+                            'params' => $params
                         ];
                     }else{
-                        return ['string'=>'', 'boolean'=>$where['boolean']];
+                        return [
+                            'string'=>'',
+                            'boolean'=>$where['boolean'],
+                            'params' => []
+                        ];
                     }
                     break;
                 case "FindInSet" :
+                    $params = [];
+                    $fieldName = $this->getTempParamName($where['column']);
+                    $params[$fieldName] = $where['value'];
+                    $value = ":{$fieldName}";
                     return [
-                        'string' => "find_in_set({$where['value']}, {$where['column']})",
-                        "boolean" => $where['boolean']
+                        'string' => "find_in_set({$value}, {$where['column']})",
+                        "boolean" => $where['boolean'],
+                        'params' => $params
                     ];
                     break;
                 case "NotLike" :
                 case "Like" :
+                    $params = [];
+                    $fieldName = $this->getTempParamName($where['column']);
+                    $params[$fieldName] = $where['value'];
+                    $value = ":{$fieldName}";
                     return [
-                        'string' => "{$where['column']} ".($where['type']=='NotLike' ? 'not' : '')."like '{$where['value']}'",
-                        'boolean' => $where['boolean']
+                        'string' => "{$where['column']} ".($where['type']=='NotLike' ? 'not' : '')."like {$value}",
+                        'boolean' => $where['boolean'],
+                        'params' => $params
                     ];
                     break;
                 default :
-                    $value = $where['value'];
-                    switch($where['operator']){
-                        case '>' :
-                        case '>=' :
-                        case '<' :
-                        case '<=' :
-                            $value = is_numeric($value) ? $value : "'{$value}'";
-                            break;
-                        default :
-                            $value = "'{$value}'";
-                            break;
-                    }
+                    $params = [];
+                    $fieldName = $this->getTempParamName($where['column']);
+                    $params[$fieldName] = $where['value'];
+                    $value = ":{$fieldName}";
                     return [
-                        'string' => "{$where['column']}{$where['operator']}$value",
-                        'boolean' => $where['boolean']
+                        'string' => "{$where['column']}{$where['operator']}{$value}",
+                        'boolean' => $where['boolean'],
+                        'params' => $params
                     ];
-                    break;
-            }
-        }
-
-        /**
-         * 解析嵌套条件
-         * @param array $where
-         * @param $type
-         * @return string
-         */
-        private function compileWhereNested(array $where, $type='select'){
-            if(isset($where['query']) && ($where['query'] instanceof QueryBuilder)){
-                return $where['query']->grammar->compileWhere('select');
-            }
-            return "";
-        }
-
-        /**
-         * 处理 set
-         * @param $type
-         * @return array
-         */
-        public function compileSet(&$type){
-            switch($type){
-                case "update" :
-                    $columns = $values = [];
-                    $sets = is_array(end($this->query->set)) ? end($this->query->set) : $this->query->set;
-                    foreach($sets as $set){
-                        $columns[] = "`{$set['field']}`=".($set['include_field']===true ? $set['value'] : ":{$set['field']}");
-                        if($set['include_field']===false){
-                            $values[] = $set['value'];
-                        }
-                    }
-                    return [join(",",$columns), $values];
-                    break;
-                case "insert" :
-                    $sets = is_array(end($this->query->set)) ? $this->query->set : [$this->query->set];
-                    $return = [];
-                    foreach($sets as $key=>$set_array){
-                        $columns = $values = $params = [];
-                        foreach($set_array as $set){
-                            $columns[] = "`{$set['field']}`";
-                            $values[] = $set['include_field']===true ? $set['value'] : ":{$set['field']}";
-                            if($set['include_field']===false){
-                                $params[] = $set["value"];
-                            }
-                        }
-                        $return[] = [join(",",$columns), join(",",$values), $params];
-                    }
-                    return $return;
-                    break;
-                default :
-                    return array('', [], []);
                     break;
             }
         }
@@ -505,18 +551,130 @@ namespace DB\Grammar{
 
         /**
          * 解析 UNION 联合查询
-         * @return string
+         * @return array
          */
         public function compileUnion(){
             $unions = $this->query->unions;
-            $string = [];
+            $string = $params = [];
             foreach($unions as $u){
-                $sql = $u['query']->grammar->compileToQueryString();
-                if(!empty($sql)){
-                    $string[] = "union ".($u['all'] ? 'all ' : '')."({$sql})";
+                list($queryString, $params_arr) = $u['query']->grammar->compileToQueryString();
+                if(!empty($queryString)){
+                    $string[] = "union ".($u['all'] ? 'all ' : '')."({$queryString})";
+                    if(!empty($params)){
+                        $params = array_merge($params, $params_arr);
+                    }
                 }
             }
-            return !empty($string) ? " ".join(" ",$string) : "";
+            $queryString = !empty($string) ? " ".join(" ",$string) : "";
+            return [$queryString, $params];
         }
+
+
+        /**
+         * 处理 set
+         * @param $type
+         * @return array
+         */
+        public function compileSet(&$type){
+            switch($type){
+                case "update" :
+                    //仅支持基础的一条语句更新
+                    $columns = $values = $params = [];
+                    $sets = is_array(end($this->query->set)) ? end($this->query->set) : $this->query->set;
+                    foreach($sets as $set){
+                        $fieldName = $this->getTempParamName($set['field']);
+                        $columns[] = "`{$set['field']}`=".($set['include_field']===true ? $set['value'] : ":{$fieldName}");
+                        if($set['include_field']===false){
+                            $params[$fieldName] = $set['value'];
+                        }
+                    }
+                    return [join(",",$columns), $params];
+                    break;
+                case "insert" :
+                    //支持多条记录插入，但每条记录的字段必须一样
+                    $sets = is_array(end($this->query->set)) ? $this->query->set : [$this->query->set];
+                    $columns = $values = $params = [];
+                    foreach($sets as $key=>$set_array){
+                        $thisColumns = $thisValues = $thisParams = [];
+                        foreach($set_array as $set){
+                            $thisColumns[] = "`{$set['field']}`";
+                            $thisValues[] = $set['include_field']===true ? $set['value'] : ":{$set['field']}";
+                            if($set['include_field']===false){
+                                $thisParams["{$set['field']}"] = $set["value"];
+                            }
+                        }
+                        $columns[] = "(".join(",", $thisColumns).")";
+                        $values[] = "(".join(",", $thisValues).")";
+                        $params[] = $thisParams;
+                    }
+                    return [$columns, $values, $params];
+                    break;
+                case "insert where not exists" :
+                    //仅支持1条数据插入，请勿多条插入：insert into TABLE (f1, f2, fn) select 'f1_val', 'f2_val', 'fn_val' from dual where not exists (select * from TABLE where {$where})
+                    $sets = is_array(end($this->query->set)) ? end($this->query->set) : $this->query->set;
+                    $columns = $values = $params = [];
+                    foreach($sets as $set){
+                        $columns[] = "`{$set['field']}`";
+                        $values[] = $set['include_field']===true ? $set['value'] : ":{$set['field']}";
+                        if($set['include_field']===false){
+                            $params[$set['field']] = $set['value'];
+                        }
+                    }
+                    return ["(".join(",", $columns).")", join(",", $values), $params];
+                    break;
+                default :
+                    return array('', [], []);
+                    break;
+            }
+        }
+
+        /**
+         * 把一个值绑定到一个参数
+         * @param $parameter
+         * @param $value
+         * @param int $data_type
+         */
+        public function bindValue($parameter, $value, $data_type=PDO::PARAM_STR){
+            if(is_null($this->statement)){
+                DB::log("未初始化 PDOStatement 对象", $this->query->connection->errorDisplay[$this->pdoModel]);
+            }
+            if(!$this->statement->bindValue($parameter, $value, $data_type)){
+                DB::log("参数绑定错误：{$parameter} = {$value}", $this->query->connection->errorDisplay[$this->pdoModel]);
+            }
+        }
+
+        /**
+         * 把所有值绑定到参数
+         */
+        public function bindValues(){
+            if(!empty($this->params)){
+                foreach ($this->params as $key=>$val){
+                    if(is_numeric($key)){
+                        $this->bindValue($key+1, $val);
+                    }else{
+                        $this->bindValue(":".$key, $val);
+                    }
+                }
+            }
+        }
+
+        /**
+         * 刷新参数值
+         * @param $addParams
+         */
+        public function flushParams($addParams){
+            $this->params = is_null($this->params) ? [] : $this->params;
+            $this->params = !empty($addParams) ? array_merge($this->params, $addParams) : $this->params;
+        }
+
+        /**
+         * 参数名防重复
+         * @param $name
+         * @return string
+         */
+        public function getTempParamName($name){
+            return isset($this->tempParams[$name]) ? $this->getTempParamName($name."_".count($this->tempParams)) : $name;
+        }
+
     }
 }
