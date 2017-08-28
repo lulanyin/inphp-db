@@ -27,5 +27,16 @@ spl_autoload_register(function($fileName){
         require_once $url.'.php';
     }elseif(is_file(strtolower($url).'.php')){
         require_once strtolower($url).'.php';
+    }else{
+        $url = $dir."/../..".$fileName;
+        if(is_file($url.".class.php")){
+            require_once $url.".class.php";
+        }elseif(is_file(strtolower($url).".class.php")){
+            require_once strtolower($url).".class.php";
+        }elseif(is_file($url.'.php')){
+            require_once $url.'.php';
+        }elseif(is_file(strtolower($url).'.php')){
+            require_once strtolower($url).'.php';
+        }
     }
 });
