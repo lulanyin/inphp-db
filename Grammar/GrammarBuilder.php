@@ -673,6 +673,8 @@ namespace DB\Grammar{
          * @return string
          */
         public function getTempParamName($name){
+            $name = strtolower($name);
+            $name = preg_match("/^[a-z][a-z0-9_]*[a-z0-9]$/i",$name) ? $name : md5($name);
             return isset($this->tempParams[$name]) ? $this->getTempParamName($name."_".count($this->tempParams)) : $name;
         }
 
