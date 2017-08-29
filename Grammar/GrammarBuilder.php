@@ -38,6 +38,11 @@ namespace DB\Grammar{
          * @var string
          */
         public $pdoModel = 'read';
+        /**
+         * 处理结果语句
+         * @var array
+         */
+        public $queryString = [];
 
         public $total = null;
         public $offset = 0;
@@ -226,6 +231,7 @@ namespace DB\Grammar{
          * @return array
          */
         public function compileToQueryString($type='select'){
+            $this->tempParams = $this->params = [];
             $this->pdoModel = $type=='select' ? 'read' : 'write';
             $tableName = $this->compileTable($type=='select' ? 'read' : 'write');
             switch ($type){
@@ -282,6 +288,7 @@ namespace DB\Grammar{
                     $params = array_merge($params1, $params2);
                     break;
             }
+            $this->queryString[$type] = [$queryString, $params];
             return [$queryString, $params];
         }
 
