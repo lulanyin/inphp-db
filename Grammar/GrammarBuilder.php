@@ -231,6 +231,7 @@ namespace DB\Grammar{
          * @return array
          */
         public function compileToQueryString($type='select'){
+            //修复若先执行rows, count等，会导致参数化错误，无法正常返回数据！
             $this->tempParams = $this->params = [];
             $this->pdoModel = $type=='select' ? 'read' : 'write';
             $tableName = $this->compileTable($type=='select' ? 'read' : 'write');
