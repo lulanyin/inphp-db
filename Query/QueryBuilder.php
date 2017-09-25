@@ -9,6 +9,7 @@ namespace DB\Query{
     use DB\Connection\Connection;
     use DB\DB;
     use DB\Grammar\GrammarBuilder;
+    use DB\Grammar\mssqlGrammar;
     use PDO;
     use Closure;
 
@@ -65,7 +66,7 @@ namespace DB\Query{
             $this->connection = $connection;
             switch ($connection->driver){
                 case "mssql" :
-
+                    $this->grammar = new mssqlGrammar($this);
                     break;
                 case "sqlite" :
 

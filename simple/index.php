@@ -27,3 +27,18 @@ if($db->update()){
     DB::rollBack();
     echo "错误：".$db->getError();
 }
+//
+DB::from('t t1')->where('t1.a','>', 5)->join("t t2", ['t1.f', '=', 't2.f']);
+
+DB::from('t')->insert([
+    ['fieldName'=>'value'],
+    [],
+]);
+DB::from('t')->where('field', 'vale')->update([
+    'fieldName'=>'value'
+]);
+// select from t where a=b and (b=c or c=d)
+
+DB::execute('');
+
+DB::get("");
