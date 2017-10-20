@@ -304,7 +304,7 @@ namespace DB\Grammar{
             $table = !empty($tableName) ? $tableName : $this->query->tableName;
             $table = preg_replace("/\s+/"," ",$table);
             $table = trim($table);
-            return stripos($table, ".") ? $table : (($type=='write' ? $write_prefix : $read_prefix).$table);
+            return stripos($table, ".") || stripos($table, "`")>=0 ? $table : (($type=='write' ? $write_prefix : $read_prefix).$table);
         }
 
         /**
@@ -314,11 +314,7 @@ namespace DB\Grammar{
         private function compileColumns(){
             $columns = $this->query->columns;
             $columnString = join(",", $columns);
-            if((strripos($columnString, '*')>0 || strripos($columnString, '*')===0) && !strripos($columnString, '.*')){
-                return "*";
-            }else{
-                return $columnString;
-            }
+            return $columnString;
         }
 
         /**
