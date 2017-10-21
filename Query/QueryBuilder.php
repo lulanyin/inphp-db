@@ -981,11 +981,47 @@ namespace DB\Query{
          * @param $column
          * @param int $number
          * @param null $set
-         * @return $this
+         * @return QueryBuilder
          */
         public function decrement($column, $number=1, $set=null){
             return $this->setRaw($column, "`{$column}`-{$number}", $set);
         }
+
+        /**
+         * datetime 字段专用的时间段查询，可以
+         * @param $column
+         * @param $start
+         * @param $end
+         * @return QueryBuilder
+         */
+        public function whereDateTimeBetween($column, $start, $end){
+            $start = is_numeric($start) && strlen($start)==10 ? date("Y-m-d H:i:s", $start) : $start;
+            $end = is_numeric($end) && strlen($end)==10 ? date("Y-m-d H:i:s", $end) : $end;
+            return $this->whereBetween($column, ["'{$start}'", "'{$end}'"]);
+        }
+
+        /**
+         * 从什么时间开始
+         * @param $column
+         * @param $start
+         * @return QueryBuilder
+         */
+        public function whereDateTimeStartAt($column, $start){
+            $start = is_numeric($start) && strlen($start)==10 ? date("Y-m-d H:i:s", $start) : $start;
+            return $this->where($column, ">=", "'{$start}'");
+        }
+
+        /**
+         * 到什么时间结束
+         * @param $column
+         * @param $end
+         * @return QueryBuilder
+         */
+        public function whereDateTimeEndAt($column, $end){
+            $end = is_numeric($end) && strlen($end)==10 ? date("Y-m-d H:i:s", $end) : $end;
+            return $this->where($column, "<=", "'{$end}'");
+        }
+
 
 
     }
