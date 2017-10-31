@@ -62,6 +62,16 @@ namespace DB{
             $query = new QueryBuilder($connection);
             return $query->from($table);
         }
+
+        /**
+         * 获取一个新的 QueryBuilder，不带查询
+         * @param string $name
+         * @return QueryBuilder
+         */
+        public static function getQuery($name="default"){
+            $connection = self::getConnection($name);
+            return new QueryBuilder($connection);
+        }
         /**
          * @param $table
          * @return QueryBuilder
@@ -273,13 +283,33 @@ namespace DB{
         }
 
         /**
+         * 获取对应数据库的所有表名
+         * @param int $cutPrefix
+         * @param string $name
+         * @return array
+         */
+        public static function getTables($cutPrefix=0, $name="default"){
+            $list = self::from('INFORMATION_SCHEMA.COLUMNS')->where('TABLE_SCHEMA', self::getDBName($name))->lists('TABLE_NAME', 1);
+            //去除前缀
+            if($cutPrefix){
+                $result = [];
+                $prefix = self::getTablePrefix($name);
+                foreach ($list as $l){
+                    $result[] = substr($l, strlen($prefix));
+                }
+                return $result;
+            }
+            return $list;
+        }
+
+        /**
          * 获取表的字段列表
          * @param $tableName
          * @param string $name
          * @return array
          */
         public static function getFieldsListFromTable($tableName, $name='default'){
-            return self::from('INFORMATION_SCHEMA.COLUMNS')->where('TABLE_SCHEMA', self::getDBName($name))->where('TABLE_NAME', self::getTablePrefix().$tableName)->lists('COLUMN_NAME');
+            return self::from('INFORMATION_SCHEMA.COLUMNS')->where('TABLE_SCHEMA', self::getDBName($name))->where('TABLE_NAME', self::getTablePrefix().$tableName)->lists('COLUMN_NAME', 1);
         }
 
         /**
@@ -289,7 +319,13 @@ namespace DB{
          */
         public static function log($text, $output=false){
             if(!empty($text)){
-                $f = fopen(__DIR__."/Log/error.txt", "a");
+                $dir = defined('ROOT') ? ROOT."/data/Log" : __DIR__."/Log";
+                if(!is_dir($dir)){
+                    if(!@mkdir($dir)){
+                        exit("<font style='font-size:12px;'>目录不可创建：{$dir}</font>");
+                    }
+                }
+                $f = fopen($dir."/error.txt", "a");
                 if($f){
                     @fwrite($f, "时间：".date("Y/m/d H:i:s")."  ".$text);
                     @fclose($f);

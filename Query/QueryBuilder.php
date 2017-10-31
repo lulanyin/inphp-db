@@ -604,17 +604,17 @@ namespace DB\Query{
          * @param int $offset
          * @return QueryBuilder|bool
          */
-        public function get($total=1000, $offset=0){
+        public function get($total=null, $offset=0){
             $this->result = $this->grammar->get($total, $offset);
-            return $this->result!==false ? $this : false;
-        }
-        public function getArray($total=1000, $offset=0){
-            $rs = $this->get($total, $offset);
+            $rs = $this->result!==false ? $this : false;
             if(!$rs){
                 list($queryString, $params) = $this->compileToQueryString();
-                DB::log("SQL 语法错误：{$queryString}\r\n参数：{".implode(",",$params)."}\r\n", $this->connection->errorDisplay['read']);
+                DB::log("SQL 语法错误：\r\n{$queryString}\r\n参数：{".implode(",",$params)."}\r\n", $this->connection->errorDisplay['read']);
             }
-            return $this->toArray();
+            return $this->result;
+        }
+        public function getArray($total=null, $offset=0){
+            return $this->get($total, $offset);
         }
 
         /**

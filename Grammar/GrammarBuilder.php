@@ -304,7 +304,7 @@ namespace DB\Grammar{
             $table = !empty($tableName) ? $tableName : $this->query->tableName;
             $table = preg_replace("/\s+/"," ",$table);
             $table = trim($table);
-            return stripos($table, ".") || stripos($table, "`")>=0 ? $table : (($type=='write' ? $write_prefix : $read_prefix).$table);
+            return stripos($table, ".") || stripos($table, "`")>0 || stripos($table, "`")===0 ? $table : (($type=='write' ? $write_prefix : $read_prefix).$table);
         }
 
         /**
