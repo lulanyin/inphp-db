@@ -988,6 +988,22 @@ namespace DB\Query{
         }
 
         /**
+         * 转换为 datetime 可接受的格式
+         * @param $time
+         * @return false|mixed|string
+         */
+        private function translateToDatetime($time){
+            if(is_numeric($time) && strlen($time)==10){
+                return date("Y-m-d H:i:s", $time);
+            }
+            $time = preg_replace("/[年|月|\/]$/", "-", $time);
+            $time = str_replace("日", " ", $time);
+            $time = preg_replace("/[时|分]$/", ":", $time);
+            $time = str_replace("秒", "", $time);
+            return str_replace("--", "-", trim($time));
+        }
+
+        /**
          * datetime 字段专用的时间段查询，可以
          * @param $column
          * @param $start
@@ -995,8 +1011,8 @@ namespace DB\Query{
          * @return QueryBuilder
          */
         public function whereDateTimeBetween($column, $start, $end){
-            $start = is_numeric($start) && strlen($start)==10 ? date("Y-m-d H:i:s", $start) : $start;
-            $end = is_numeric($end) && strlen($end)==10 ? date("Y-m-d H:i:s", $end) : $end;
+            $start = $this->translateToDatetime($start);
+            $end = $this->translateToDatetime($end);
             return $this->whereBetween($column, ["'{$start}'", "'{$end}'"]);
         }
 
@@ -1007,7 +1023,7 @@ namespace DB\Query{
          * @return QueryBuilder
          */
         public function whereDateTimeStartAt($column, $start){
-            $start = is_numeric($start) && strlen($start)==10 ? date("Y-m-d H:i:s", $start) : $start;
+            $start = $this->translateToDatetime($start);
             return $this->where($column, ">=", "'{$start}'");
         }
 
@@ -1018,7 +1034,7 @@ namespace DB\Query{
          * @return QueryBuilder
          */
         public function whereDateTimeEndAt($column, $end){
-            $end = is_numeric($end) && strlen($end)==10 ? date("Y-m-d H:i:s", $end) : $end;
+            $end = $this->translateToDatetime($end);
             return $this->where($column, "<=", "'{$end}'");
         }
 
