@@ -117,7 +117,7 @@ namespace DB\Query{
             $columns = is_array($columns) ? $columns : func_get_args();
             $list = [];
             foreach ($columns as $c){
-                $c = preg_replace("/\s+/", "", $c);
+                $c = preg_replace("/\s+/", " ", $c);
                 $c = str_replace("、", ",", $c);
                 $c = str_replace("，", ",", $c);
                 $c = str_replace("|", ",", $c);
@@ -622,7 +622,7 @@ namespace DB\Query{
          * @return array
          */
         public function first(){
-            $row = $this->get(1)->toArray();
+            $row = $this->get(1);
             return is_array(end($row)) ? end($row) : [];
         }
         public function getOn(){
@@ -836,7 +836,7 @@ namespace DB\Query{
          */
         public function lists($column, $distinct=false){
             $this->columns = $distinct ? ["distinct {$column} as list_column"] : ["{$column} as list_column"];
-            $rows = $this->get()->toArray();
+            $rows = $this->get();
             $list = array();
             foreach($rows as $r){
                 if(isset($r["list_column"])){
