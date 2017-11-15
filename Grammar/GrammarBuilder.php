@@ -335,11 +335,13 @@ namespace DB\Grammar{
             }
             return join("", $string);
         }
+
         /**
          * 编译 where 条件
+         * @param bool $Nested
          * @return array
          */
-        public function compileWhere(){
+        public function compileWhere($Nested=false){
             $string = [];
             foreach ($this->query->wheres as $where){
                 switch ($where['type']){
@@ -388,7 +390,7 @@ namespace DB\Grammar{
                         }
                     }
                 }
-                $where = !empty($whereString) ? (" where ".join("", $whereString)) : null;
+                $where = !empty($whereString) ? (($Nested ? "" : " where ").join("", $whereString)) : null;
                 return [$where, $params];
             }
             return [null, []];
@@ -402,7 +404,7 @@ namespace DB\Grammar{
          */
         public function compileWhereNested($where){
             if(isset($where['query']) && ($where['query'] instanceof QueryBuilder)){
-                return $where['query']->grammar->compileWhere();
+                return $where['query']->grammar->compileWhere(true);
             }
             return [null, null];
         }
