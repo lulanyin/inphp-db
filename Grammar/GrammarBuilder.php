@@ -73,6 +73,12 @@ namespace DB\Grammar{
             $this->offset = $offset;
             list($queryString, $params) = $this->compileToQueryString();
             $this->flushParams($params);
+            if(!empty($this->query->result)){
+                if($this->query->result_query==$queryString && $params==$this->query->result_query_params){
+                    return !is_numeric($total) ? array_slice($this->query->result, $offset, min($total, count($this->query->result))) : $this->query->result;
+                }
+            }
+            //判断查询语句、参数是否相同
             if(!is_null($total)){
                 $queryString .= " limit {$offset},{$total}";
             }
@@ -100,17 +106,21 @@ namespace DB\Grammar{
          * @return int
          */
         public function count(){
-            $columns = $this->query->columns;
-            $this->query->columns = ["count('')"];
+            //$columns = $this->query->columns;
+            //$this->query->columns = ["count('')"];
             list($queryString, $params) = $this->compileToQueryString();
             $this->flushParams($params);
-            $this->query->columns = $columns;
+            //$this->query->columns = $columns;
             $read_pdo = $this->getPdo();
             if($this->statement = $read_pdo->prepare($queryString)){
                 $this->bindValues();
                 $this->statement->execute();
-                $result = $this->statement->fetchAll();
-                return !empty($result) && is_array($result) ? end($result)[0] : 0;
+                $result = $this->statement->fetchAll($this->query->fetchModel);
+                //执行行数统计时，要将临时结果存放越来，若后面查询语句不变，则直接使用即可
+                $this->query->result = $result;             //查询获得的结果
+                $this->query->result_query = $queryString;  //查询语句
+                $this->query->result_query_params = $params;//查询语句对应的参数、值
+                return !empty($result) && is_array($result) ? count($result) : 0;
             }else{
                 return 0;
             }

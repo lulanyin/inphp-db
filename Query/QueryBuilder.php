@@ -46,6 +46,8 @@ namespace DB\Query{
         public $errorId         = 0;                    //错误ID
 
         public $result          = [];                   //查询结果
+        public $result_query    = '';                   //查询结果对应的SQL语句
+        public $result_query_params = [];                   //查询结果对应的SQL语句的参数值
 
         public $operators       = [
             '=', '>', '>=', '<', '<=', '!=', '<>',
