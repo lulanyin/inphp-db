@@ -491,9 +491,13 @@ namespace DB\Grammar{
                     break;
                 case "FindInSet" :
                     $params = [];
-                    $fieldName = $this->getTempParamName($where['column']);
-                    $params[$fieldName] = $where['value'];
-                    $value = ":{$fieldName}";
+                    if(is_numeric($where['value'])){
+                        $value = $where['value'];
+                    }else{
+                        $fieldName = $this->getTempParamName($where['column']);
+                        $params[$fieldName] = $where['value'];
+                        $value = ":{$fieldName}";
+                    }
                     return [
                         'string' => "find_in_set({$value}, {$where['column']})",
                         "boolean" => $where['boolean'],
@@ -514,9 +518,13 @@ namespace DB\Grammar{
                     break;
                 default :
                     $params = [];
-                    $fieldName = $this->getTempParamName($where['column']);
-                    $params[$fieldName] = $where['value'];
-                    $value = ":{$fieldName}";
+                    if(is_numeric($where['value'])){
+                        $value = $where['value'];
+                    }else {
+                        $fieldName = $this->getTempParamName($where['column']);
+                        $params[$fieldName] = $where['value'];
+                        $value = ":{$fieldName}";
+                    }
                     return [
                         'string' => "{$where['column']}{$where['operator']}{$value}",
                         'boolean' => $where['boolean'],
