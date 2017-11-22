@@ -75,7 +75,7 @@ namespace DB\Grammar{
             $this->flushParams($params);
             if(!empty($this->query->result)){
                 if($this->query->result_query==$queryString && $params==$this->query->result_query_params){
-                    return !is_numeric($total) ? array_slice($this->query->result, $offset, min($total, count($this->query->result))) : $this->query->result;
+                    return is_numeric($total) ? array_slice($this->query->result, $offset, min($total, count($this->query->result))) : $this->query->result;
                 }
             }
             //判断查询语句、参数是否相同
