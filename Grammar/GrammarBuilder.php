@@ -119,8 +119,9 @@ namespace DB\Grammar{
                 if(!$bool){
                     $result = $this->statement->fetchAll(PDO::FETCH_NUM);
                     if(!empty($result)){
-                        return $result[0][0] || 0;
+                        return $result[0][0];
                     }
+                    return 0;
                 }else{
                     $result = $this->statement->fetchAll($this->query->fetchModel);
                     //执行行数统计时，要将临时结果存放越来，若后面查询语句不变，则直接使用即可
@@ -332,6 +333,7 @@ namespace DB\Grammar{
         private function compileColumns(){
             $columns = $this->query->columns;
             $columnString = join(",", $columns);
+            $columnString =  str_replace(", ", ",", $columnString);
             return $columnString;
         }
 

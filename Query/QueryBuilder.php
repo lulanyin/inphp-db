@@ -138,7 +138,7 @@ namespace DB\Query{
             $columns = is_array($columns) ? $columns : func_get_args();
             $list = [];
             foreach ($columns as $c){
-                $c = preg_replace("/\s+/", "", $c);
+                //$c = preg_replace("/\s+/", "", $c);
                 $c = str_replace("、", ",", $c);
                 $c = str_replace("，", ",", $c);
                 $c = str_replace("|", ",", $c);
@@ -1026,7 +1026,7 @@ namespace DB\Query{
          */
         public function whereDateTimeStartAt($column, $start){
             $start = $this->translateToDatetime($start);
-            return $this->where($column, ">=", "'{$start}'");
+            return $this->whereRaw("{$column}>='{$start}'");
         }
 
         /**
@@ -1037,9 +1037,30 @@ namespace DB\Query{
          */
         public function whereDateTimeEndAt($column, $end){
             $end = $this->translateToDatetime($end);
-            return $this->where($column, "<=", "'{$end}'");
+            return $this->whereRaw("{$column}<='{$end}'");
         }
 
+        /**
+         * 查询，过去N个月
+         * @param $column
+         * @param $number
+         * @return $this
+         */
+        public function whereMonthAfter($column, $number){
+            $number = intval($number);
+            if($number>0){
+                $this->whereRaw("{$column} between date_sub(now(), interval {$number} month) and now()");
+            }
+            return $this;
+        }
+
+        public function whereMonthBefore($column, $number){
+            $number = intval($number);
+            if($number>0){
+                $this->whereRaw("{$column}<=date_sub(now(), interval {$number} month)");
+            }
+            return $this;
+        }
 
 
     }
