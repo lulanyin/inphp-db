@@ -1044,7 +1044,7 @@ namespace DB\Query{
          * 查询，过去N个月
          * @param $column
          * @param $number
-         * @return $this
+         * @return QueryBuilder
          */
         public function whereMonthAfter($column, $number){
             $number = intval($number);
@@ -1054,11 +1054,63 @@ namespace DB\Query{
             return $this;
         }
 
+        /**
+         * 查询过去 N 个月之前的数据
+         * @param $column
+         * @param $number
+         * @return QueryBuilder
+         */
         public function whereMonthBefore($column, $number){
             $number = intval($number);
             if($number>0){
                 $this->whereRaw("{$column}<=date_sub(now(), interval {$number} month)");
             }
+            return $this;
+        }
+
+        /**
+         * 查询过去 N1 个月份到 N2 个月份之内的数据
+         * @param $column
+         * @param $month
+         * @return QueryBuilder
+         * ->whereMonthBetween("时间字段", [6, 12]) 查询过去 6~12个月份内的数据
+         * ->whereMonthBetween("时间字段", 6) 查询过去 6 个月内的数据
+         */
+        public function whereMonthBetween($column, $month){
+            $month = is_array($month) ? $month : [intval($month)];
+            $start = isset($month[1]) ? $month[1] : $month[0];
+            $start = "date_sub(now(), interval {$start} month)";
+            $end = isset($month[1]) ? "date_sub(now(), interval {$month[0]} month)" : "now()";
+            $this->whereRaw("{$column} between {$start} and {$end}");
+            return $this;
+        }
+
+        /**
+         * 查询过去 N 年之前的数据
+         * @param $column
+         * @param $number
+         * @return $this
+         */
+        public function whereYearBefore($column, $number){
+            $number = intval($number);
+            if($number>0){
+                $this->whereRaw("{$column}<=date_sub(now(), interval {$number} year)");
+            }
+            return $this;
+        }
+
+        /**
+         * 查询过去 N1 个年份到 N2 个年份之内的数据
+         * @param $column
+         * @param $year
+         * @return $this
+         */
+        public function whereYearBetween($column, $year){
+            $year = is_array($year) ? $year : [intval($year)];
+            $start = isset($year[1]) ? $year[1] : $year[0];
+            $start = "date_sub(now(), interval {$start} year)";
+            $end = isset($year[1]) ? "date_sub(now(), interval {$year[0]} year)" : "now()";
+            $this->whereRaw("{$column} between {$start} and {$end}");
             return $this;
         }
 
