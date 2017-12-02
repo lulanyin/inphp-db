@@ -114,21 +114,26 @@ namespace DB\Grammar{
             $this->query->columns = $columns;
             $read_pdo = $this->getPdo();
             if($this->statement = $read_pdo->prepare($queryString)){
-                //$this->bindValues();
-                $this->statement->execute();
-                if(!$bool){
-                    $result = $this->statement->fetchAll(PDO::FETCH_NUM);
-                    if(!empty($result)){
-                        return $result[0][0];
+                try{
+                    $this->bindValues();
+                    $this->statement->execute();
+                    if(!$bool){
+                        $result = $this->statement->fetchAll(PDO::FETCH_NUM);
+                        if(!empty($result)){
+                            return $result[0][0];
+                        }
+                        return 0;
+                    }else{
+                        $result = $this->statement->fetchAll($this->query->fetchModel);
+                        //执行行数统计时，要将临时结果存放越来，若后面查询语句不变，则直接使用即可
+                        $this->query->result = $result;             //查询获得的结果
+                        $this->query->result_query = $queryString;  //查询语句
+                        $this->query->result_query_params = $params;//查询语句对应的参数、值
+                        return !empty($result) && is_array($result) ? count($result) : 0;
                     }
+                }catch (PDOException $e){
+                    DB::log("Query : {$queryString}\r\nError : ".$e->getMessage()."\r\n", $this->query->connection->errorDisplay['read']);
                     return 0;
-                }else{
-                    $result = $this->statement->fetchAll($this->query->fetchModel);
-                    //执行行数统计时，要将临时结果存放越来，若后面查询语句不变，则直接使用即可
-                    $this->query->result = $result;             //查询获得的结果
-                    $this->query->result_query = $queryString;  //查询语句
-                    $this->query->result_query_params = $params;//查询语句对应的参数、值
-                    return !empty($result) && is_array($result) ? count($result) : 0;
                 }
             }else{
                 return 0;
