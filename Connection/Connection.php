@@ -6,6 +6,7 @@
  */
 namespace DB\Connection{
 
+    use DB\Cache\driver\Redis;
     use DB\DB;
     use PDO;
     use PDOException;
@@ -24,6 +25,7 @@ namespace DB\Connection{
         public $rowCount = 0;
         public $inTransaction = false;
         public $errorDisplay = [];
+        public $redis = null;
 
         public function __construct(array $config){
             //读
@@ -40,6 +42,16 @@ namespace DB\Connection{
             //连接数据库
             $this->connect($read_config, 'read');
             $this->connect($write_config, 'write');
+            //尝试连接redis
+            if (!extension_loaded('redis')) {
+                //尝试在缓存中获取，默认使用 redis 扩展
+                if(isset($config['redis'])){
+                    $redis = new Redis($config['redis']);
+                    if(!is_null($redis)){
+                        $this->redis = $redis;
+                    }
+                }
+            }
         }
 
         public function connect(array $config=[], $type){

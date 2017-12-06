@@ -1,6 +1,7 @@
 <?php
 namespace DB\Grammar{
 
+    use DB\Cache\driver\Redis;
     use DB\Query\QueryBuilder;
     use PDO;
     use DB\DB;
@@ -47,10 +48,13 @@ namespace DB\Grammar{
         public $total = null;
         public $offset = 0;
 
+        public $redis = null;
+
         public function __construct(QueryBuilder $query){
             $this->query        = $query;
             $this->pdo_read     = $query->connection->getPdo('read');
             $this->pdo_write    = $query->connection->getPdo('write');
+            $this->redis        = $this->getRedis();
         }
 
         /**
@@ -60,6 +64,13 @@ namespace DB\Grammar{
          */
         public function getPdo($type='read'){
             return $type=='write' ? $this->pdo_write : $this->pdo_read;
+        }
+
+        /**
+         * @return Redis|null
+         */
+        public function getRedis(){
+            return $this->query->connection->redis;
         }
 
         /**
@@ -82,6 +93,17 @@ namespace DB\Grammar{
             if(!is_null($total)){
                 $queryString .= " limit {$offset},{$total}";
             }
+
+            //尝试从redis读取
+            $redisKey = md5($queryString);
+            if($this->redis){
+                if($result = $this->redis->get($redisKey)){
+                    //成功在 redis 缓存中读取到数据
+                    //DB::log("{$queryString}\r\n从缓存读取成功");
+                    return $result;
+                }
+            }
+
             $self = $this;
             $read_pdo = $this->getPdo();
             try{
@@ -89,7 +111,13 @@ namespace DB\Grammar{
                 $this->bindValues();
                 if($this->statement->execute()){
                     $this->statement->setFetchMode($this->query->fetchModel);
-                    return $this->statement->fetchAll();
+                    $result = $this->statement->fetchAll();
+                    if(!empty($result) && !is_null($this->redis)){
+                        //DB::log("{$queryString}\r\n存入缓存成功");
+                        //存入 redis 缓存的数据是具备有效期的，第三个参数设计有效期时间，单位：秒
+                        $this->redis->set($redisKey, $result, 600);
+                    }
+                    return $result;
                 }else{
                     $code = intval($this->statement->errorCode());
                     throw new PDOException($this->statement->errorInfo()[2]."<br>query : ".$this->statement->queryString."<br>code source : ".$code, intval($code));

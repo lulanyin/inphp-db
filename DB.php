@@ -327,7 +327,7 @@ namespace DB{
                 }
                 $f = fopen($dir."/error.txt", "a");
                 if($f){
-                    @fwrite($f, "时间：".date("Y/m/d H:i:s")."  ".$text);
+                    @fwrite($f, "时间：".date("Y/m/d H:i:s")."\r\n  ".$text."\r\n");
                     @fclose($f);
                 }
             }
