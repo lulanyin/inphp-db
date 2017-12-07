@@ -43,7 +43,7 @@ namespace DB\Connection{
             $this->connect($read_config, 'read');
             $this->connect($write_config, 'write');
             //尝试连接redis
-            if (!extension_loaded('redis')) {
+            if (extension_loaded('redis')) {
                 //尝试在缓存中获取，默认使用 redis 扩展
                 if(isset($config['redis'])){
                     $redis = new Redis($config['redis']);

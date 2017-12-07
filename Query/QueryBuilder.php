@@ -59,6 +59,9 @@ namespace DB\Query{
             'find_in_set', 'not find_in_set'
         ];                                              //对比符号
 
+        public $cache = false;                          //此次查询结果是否缓存
+        public $cacheExpireTime = 0;                    //如果缓存，请设置缓存的时间（秒），默认值0，永久缓存，直到缓存功能失效
+
         /**
          * QueryBuilder constructor.
          * @param Connection $connection
@@ -1089,7 +1092,7 @@ namespace DB\Query{
          * 查询过去 N 年之前的数据
          * @param $column
          * @param $number
-         * @return $this
+         * @return QueryBuilder
          */
         public function whereYearBefore($column, $number){
             $number = intval($number);
@@ -1103,7 +1106,7 @@ namespace DB\Query{
          * 查询过去 N1 个年份到 N2 个年份之内的数据
          * @param $column
          * @param $year
-         * @return $this
+         * @return QueryBuilder
          */
         public function whereYearBetween($column, $year){
             $year = is_array($year) ? $year : [intval($year)];
@@ -1114,6 +1117,17 @@ namespace DB\Query{
             return $this;
         }
 
+
+        /**
+         * 可以设置当前的查询是否缓存，如果缓存，则请设置缓存时间， 默认0，永久缓存
+         * @param int $expireTime
+         * @return QueryBuilder
+         */
+        public function cache($expireTime = 0){
+            $this->cache = true;
+            $this->cacheExpireTime = $expireTime;
+            return $this;
+        }
 
     }
 }

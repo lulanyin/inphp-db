@@ -96,10 +96,9 @@ namespace DB\Grammar{
 
             //尝试从redis读取
             $redisKey = md5($queryString);
-            if($this->redis){
+            if(!is_null($this->redis) && $this->query->cache){
                 if($result = $this->redis->get($redisKey)){
                     //成功在 redis 缓存中读取到数据
-                    //DB::log("{$queryString}\r\n从缓存读取成功");
                     return $result;
                 }
             }
@@ -112,10 +111,9 @@ namespace DB\Grammar{
                 if($this->statement->execute()){
                     $this->statement->setFetchMode($this->query->fetchModel);
                     $result = $this->statement->fetchAll();
-                    if(!empty($result) && !is_null($this->redis)){
-                        //DB::log("{$queryString}\r\n存入缓存成功");
-                        //存入 redis 缓存的数据是具备有效期的，第三个参数设计有效期时间，单位：秒
-                        $this->redis->set($redisKey, $result, 600);
+                    if(!empty($result) && !is_null($this->redis) && $this->query->cache){
+                        //存入 redis 缓存的数据是具备有效期的，第三个参数设计有效期时间，单位：秒， null=使用连接设置的有效时长  0=永久  大于0=实际时间
+                        $this->redis->set($redisKey, $result, $this->query->cacheExpireTime);
                     }
                     return $result;
                 }else{
@@ -135,9 +133,29 @@ namespace DB\Grammar{
          */
         public function count(){
             $columns = $this->query->columns;
-            $bool = strripos(join(",", $columns), "sum(");
+            $columnsString = join(",", $columns);
+            $bool = strripos($columnsString, " sum(")
+                || strripos($columnsString, " avg(")
+                || strripos($columnsString, " count(")
+                || strripos($columnsString, " max(")
+                || strripos($columnsString, " min(");
             $this->query->columns = !$bool ? ["count('')"] : $columns;
             list($queryString, $params) = $this->compileToQueryString();
+            //如果原语句中，包含了 sum(), avg(), max()... group by，要统计行数，是不能直接使用  count(*)的
+            //但是可以修改一下查询语句为  select count(*) from (原语句) temp_table
+            $bool = $bool ? $bool : !empty($this->query->groupBy);
+            if($bool){
+                $queryString = "SELECT COUNT(*) FROM ({$queryString}) TEMP_TABLE";
+            }
+            //尝试从redis读取
+            $redisKey = md5($queryString);
+            if(!is_null($this->redis) && $this->query->cache){
+                if($result = $this->redis->get($redisKey)){
+                    //成功在 redis 缓存中读取到数据
+                    //DB::log("{$queryString}\r\n从缓存读取成功");
+                    return $result;
+                }
+            }
             $this->flushParams($params);
             $this->query->columns = $columns;
             $read_pdo = $this->getPdo();
@@ -145,6 +163,17 @@ namespace DB\Grammar{
                 try{
                     $this->bindValues();
                     $this->statement->execute();
+                    $result = $this->statement->fetchAll(PDO::FETCH_NUM);
+                    if(!empty($result)){
+                        $rows = $result[0][0];
+                        //将结果缓存进来
+                        if(!is_null($this->redis) && $rows>0 && $this->query->cache){
+                            $this->redis->set($redisKey, $rows);
+                        }
+                        return $rows;
+                    }
+                    return 0;
+                    /*
                     if(!$bool){
                         $result = $this->statement->fetchAll(PDO::FETCH_NUM);
                         if(!empty($result)){
@@ -159,6 +188,7 @@ namespace DB\Grammar{
                         $this->query->result_query_params = $params;//查询语句对应的参数、值
                         return !empty($result) && is_array($result) ? count($result) : 0;
                     }
+                    */
                 }catch (PDOException $e){
                     DB::log("Query : {$queryString}\r\nError : ".$e->getMessage()."\r\n", $this->query->connection->errorDisplay['read']);
                     return 0;
@@ -534,7 +564,7 @@ namespace DB\Grammar{
                     break;
                 case "FindInSet" :
                     $params = [];
-                    if(is_numeric($where['value'])){
+                    if(is_numeric($where['value']) || strripos($where['value'], ".")){
                         $value = $where['value'];
                     }else{
                         $fieldName = $this->getTempParamName($where['column']);
