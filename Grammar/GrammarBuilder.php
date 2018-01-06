@@ -595,9 +595,7 @@ namespace DB\Grammar{
                 case "NotLike" :
                 case "Like" :
                     $params = [];
-                    $fieldName = $this->getTempParamName($where['column']);
-                    $params[$fieldName] = $where['value'];
-                    $value = ":{$fieldName}";
+                    $value = strripos($where["value"], "'")===0 ? $where["value"] : "'{$where["value"]}'";
                     return [
                         'string' => "{$where['column']} ".($where['type']=='NotLike' ? 'not' : '')."like {$value}",
                         'boolean' => $where['boolean'],
