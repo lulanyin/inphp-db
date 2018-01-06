@@ -61,6 +61,7 @@ namespace DB\Query{
 
         public $cache = false;                          //此次查询结果是否缓存
         public $cacheExpireTime = 0;                    //如果缓存，请设置缓存的时间（秒），默认值0，永久缓存，直到缓存功能失效
+        public $cacheReload = false;                    //是否更新缓存
 
         /**
          * QueryBuilder constructor.
@@ -1120,10 +1121,12 @@ namespace DB\Query{
 
         /**
          * 可以设置当前的查询是否缓存，如果缓存，则请设置缓存时间， 默认0，永久缓存
+         * @param null $cacheReload
          * @param int $expireTime
          * @return QueryBuilder
          */
-        public function cache($expireTime = 0){
+        public function cache($cacheReload=null, $expireTime = 0){
+            $this->cacheReload = is_null($cacheReload) ? $this->cacheReload : $cacheReload;
             $this->cache = true;
             $this->cacheExpireTime = $expireTime;
             return $this;

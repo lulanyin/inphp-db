@@ -96,7 +96,7 @@ namespace DB\Grammar{
 
             //尝试从redis读取
             $redisKey = md5($queryString);
-            if(!is_null($this->redis) && $this->query->cache){
+            if(!is_null($this->redis) && $this->query->cache && !$this->query->cacheReload){
                 if($result = $this->redis->get($redisKey)){
                     //成功在 redis 缓存中读取到数据
                     return $result;
@@ -149,7 +149,7 @@ namespace DB\Grammar{
             }
             //尝试从redis读取
             $redisKey = md5($queryString);
-            if(!is_null($this->redis) && $this->query->cache){
+            if(!is_null($this->redis) && $this->query->cache && !$this->query->cacheReload){
                 if($result = $this->redis->get($redisKey)){
                     //成功在 redis 缓存中读取到数据
                     //DB::log("{$queryString}\r\n从缓存读取成功");
@@ -321,6 +321,9 @@ namespace DB\Grammar{
                     //删除, 暂时实现基础的语句： delete from {table name}{where}
                     list($where, $params) = $this->compileWhere();// where里边包含了语句和参数
                     $this->tempParams = array_merge($this->tempParams, $params);
+                    if(strripos($tableName, " ")){
+                        $tableName = substr($tableName, 0, strripos($tableName, " "));
+                    }
                     $queryString = "delete from {$tableName}{$where}";
                     break;
                 case "update" :
@@ -329,6 +332,9 @@ namespace DB\Grammar{
                     $this->tempParams = array_merge($this->tempParams, $params1);
                     list($where, $params2) = $this->compileWhere();// where里边包含了语句和参数
                     $this->tempParams = array_merge($this->tempParams, $params2);
+                    if(strripos($tableName, " ")){
+                        $tableName = substr($tableName, 0, strripos($tableName, " "));
+                    }
                     $queryString = "update {$tableName} set {$columns}{$where}";
                     $params = array_merge($params1, $params2);
                     break;
@@ -337,6 +343,9 @@ namespace DB\Grammar{
                     list($columns, $values, $params) = $this->compileSet($type);
                     $this->tempParams = array_merge($this->tempParams, $params);
                     $queryString = [];
+                    if(strripos($tableName, " ")){
+                        $tableName = substr($tableName, 0, strripos($tableName, " "));
+                    }
                     foreach ($columns as $key=>$c){
                         $queryString[] = "insert into {$tableName} {$c} values {$values[$key]};";
                     }
@@ -348,10 +357,16 @@ namespace DB\Grammar{
                     $this->tempParams = array_merge($this->tempParams, $params1);
                     list($where, $params2) = $this->compileWhere();// where里边包含了语句和参数
                     $this->tempParams = array_merge($this->tempParams, $params2);
+                    if(strripos($tableName, " ")){
+                        $tableName = substr($tableName, 0, strripos($tableName, " "));
+                    }
                     $queryString = "insert into {$tableName} {$columns} select {$values} from TEMP1 where not exists(select * from {$tableName}{$where});";
                     $params = array_merge($params1, $params2);
                     break;
                 case "truncate" :
+                    if(strripos($tableName, " ")){
+                        $tableName = substr($tableName, 0, strripos($tableName, " "));
+                    }
                     $queryString = "truncate table {$tableName}";
                     $params = [];
                     break;
