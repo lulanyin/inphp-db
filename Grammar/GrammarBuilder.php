@@ -77,9 +77,10 @@ namespace DB\Grammar{
          * 查询获取数据
          * @param null $total
          * @param int $offset
+         * @param int $reconnectTimes
          * @return array|bool
          */
-        public function get($total=null, $offset=0){
+        public function get($total=null, $offset=0, $reconnectTimes = 0){
             $this->total = $total;
             $this->offset = $offset;
             list($queryString, $params) = $this->compileToQueryString();
@@ -121,6 +122,13 @@ namespace DB\Grammar{
                     throw new PDOException($this->statement->errorInfo()[2]."<br>query : ".$this->statement->queryString."<br>code source : ".$code, intval($code));
                 }
             }catch(PDOException $e){
+                if(strripos(strtolower($e->getMessage()), "mysql server has gone away")>0){
+                    //数据库需要重启
+                    if($reconnectTimes<5){
+                        $this->query->connection->reConnect();
+                        return $this->get($total, $offset, $reconnectTimes+1);
+                    }
+                }
                 $self->query->error = "code : ".$e->getCode()."<br>error : ".$e->getMessage()."<br>query : ".$queryString;
                 $self->query->errorId = $e->getCode();
                 return false;
@@ -252,9 +260,10 @@ namespace DB\Grammar{
          * @param $type
          * @param $queryString
          * @param $params
+         * @param $reconnectTime
          * @return bool | GrammarBuilder
          */
-        public function execute($type, $queryString=null, $params=null){
+        public function execute($type, $queryString=null, $params=null, $reconnectTime=0){
             if(is_null($queryString) && is_null($params)){
                 list($queryString, $params) = $this->compileToQueryString($type);
             }
@@ -273,6 +282,13 @@ namespace DB\Grammar{
                     throw new PDOException($this->statement->errorInfo()[2]."<br>query : ".$this->statement->queryString."<br>code source : ".$code, intval($code));
                 }
             }catch (PDOException $e){
+                if(strripos(strtolower($e->getMessage()), "mysql server has gone away")>0){
+                    //数据库需要重启
+                    if($reconnectTime<5){
+                        $this->query->connection->reConnect();
+                        return $this->execute($type, $queryString, $params, $reconnectTime+1);
+                    }
+                }
                 $this->query->connection->setError($e->getMessage(), $e->getCode());
                 DB::log("Query : {$queryString}\r\nError : ".$e->getMessage()."\r\n", $this->query->connection->errorDisplay['write']);
                 return false;

@@ -116,6 +116,7 @@ namespace DB\Connection{
          * 重新连接数据库
          */
         public function reConnect(){
+            DB::log("正在重启Mysql连接！");
             $this->connect($this->config['read']);
             $this->connect($this->config['write']);
         }
