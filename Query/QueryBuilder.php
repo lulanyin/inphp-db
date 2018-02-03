@@ -1118,6 +1118,26 @@ namespace DB\Query{
             return $this;
         }
 
+        /**
+         * 查询N周之前的，默认为本周
+         * @param $column
+         * @param int $number
+         * @return QueryBuilder
+         */
+        public function whereWeek($column, $number = 0){
+            return $this->whereRaw("YEARWEEK(DATE_FORMAT({$column},'%Y-%m-%d')) = YEARWEEK(NOW())-{$number}");
+        }
+
+        /**
+         * 查询N天之前的数据，默认今天
+         * @param $column
+         * @param int $number
+         * @return QueryBuilder
+         */
+        public function whereDay($column, $number=0){
+            return $this->whereRaw("TO_DAYS(NOW())-TO_DAYS({$column})<={$number}");
+        }
+
 
         /**
          * 可以设置当前的查询是否缓存，如果缓存，则请设置缓存时间， 默认0，永久缓存
