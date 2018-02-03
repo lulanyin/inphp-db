@@ -117,8 +117,8 @@ namespace DB\Connection{
          */
         public function reConnect(){
             DB::log("正在重启Mysql连接！");
-            $this->connect($this->config['read']);
-            $this->connect($this->config['write']);
+            $this->connect($this->config['read'], 'read');
+            $this->connect($this->config['write'], 'write');
         }
 
         /**
