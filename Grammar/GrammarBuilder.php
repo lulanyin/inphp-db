@@ -58,6 +58,22 @@ namespace DB\Grammar{
         }
 
         /**
+         * 发生连接已断开时，使用重新连接
+         * @param int $times
+         * @return bool
+         */
+        private function reconnect($times=0){
+            if($times<5){
+                //不会超过5次重连，主要防止服务端程序长时间运行时超时重新连接数据库使用的
+                $this->query->connection->reConnect();
+                $this->pdo_read = $this->query->connection->getPdo("read");
+                $this->pdo_write = $this->query->connection->getPdo("write");
+                return true;
+            }
+            return false;
+        }
+
+        /**
          * 获取 PDO
          * @param string $type
          * @return PDO
@@ -124,8 +140,7 @@ namespace DB\Grammar{
             }catch(PDOException $e){
                 if(strripos(strtolower($e->getMessage()), "mysql server has gone away")>0){
                     //数据库需要重启
-                    if($reconnectTimes<5){
-                        $this->query->connection->reConnect();
+                    if($this->reconnect($reconnectTimes+1)){
                         return $this->get($total, $offset, $reconnectTimes+1);
                     }
                 }
@@ -137,9 +152,10 @@ namespace DB\Grammar{
 
         /**
          * 获取记录条数（有待优化）
+         * @param int $reconnectTimes
          * @return int
          */
-        public function count(){
+        public function count($reconnectTimes=0){
             $columns = $this->query->columns;
             $columnsString = join(",", $columns);
             $bool = strripos($columnsString, " sum(")
@@ -198,6 +214,12 @@ namespace DB\Grammar{
                     }
                     */
                 }catch (PDOException $e){
+                    if(strripos(strtolower($e->getMessage()), "mysql server has gone away")>0){
+                        //数据库需要重启
+                        if($this->reconnect($reconnectTimes+1)){
+                            return $this->count();
+                        }
+                    }
                     DB::log("Query : {$queryString}\r\nError : ".$e->getMessage()."\r\n", $this->query->connection->errorDisplay['read']);
                     return 0;
                 }
@@ -284,8 +306,7 @@ namespace DB\Grammar{
             }catch (PDOException $e){
                 if(strripos(strtolower($e->getMessage()), "mysql server has gone away")>0){
                     //数据库需要重启
-                    if($reconnectTime<5){
-                        $this->query->connection->reConnect();
+                    if($this->reconnect($reconnectTime+1)){
                         return $this->execute($type, $queryString, $params, $reconnectTime+1);
                     }
                 }
