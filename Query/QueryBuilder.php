@@ -629,7 +629,10 @@ namespace DB\Query{
          */
         public function first(){
             $row = $this->get(1);
-            return is_array(end($row)) ? end($row) : [];
+            if(is_array($row)){
+                return is_array(end($row)) ? end($row) : [];
+            }
+           return [];
         }
         public function getOn(){
             return $this->first();
