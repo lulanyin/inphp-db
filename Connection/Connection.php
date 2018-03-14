@@ -88,11 +88,12 @@ namespace DB\Connection{
                 $this->pdo[$type] = new PDO($dns, $username, $password,
                     array(
                         PDO::ATTR_PERSISTENT => 1,
-                        PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES '{$charset}';"
+                        PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES '{$charset}';",
+                        PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => true
                     )
                 );
                 //在默认情况下，PDO并没有让MySQL数据库执行真正的预处理语句。为了解决这个问题，要禁止模拟预处理语句！
-                $this->pdo[$type]->setAttribute(PDO::ATTR_EMULATE_PREPARES, true);//禁止PDO模拟预处理语句
+                $this->pdo[$type]->setAttribute(PDO::ATTR_EMULATE_PREPARES, true);//允许PDO模拟预处理语句
                 $this->pdo[$type]->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);//这个不是必须的，但是建议加上，这样在脚本出错时，不会停止运行，而是会抛出异常！
                 $this->success = true;
             }catch (PDOException $e){
