@@ -91,7 +91,7 @@ namespace DB\Query{
          * 启用一个新的 QueryBuilder
          * @return QueryBuilder
          */
-        protected function newQuery(){
+        public function newQuery(){
             return new QueryBuilder($this->connection);
         }
 
