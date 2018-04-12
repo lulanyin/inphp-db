@@ -27,6 +27,8 @@ namespace DB\Connection{
         public $errorDisplay = [];
         public $redis = null;
 
+        public $autoRelease = false;
+
         public function __construct(array $config){
             //读
             $read_config = isset($config['read']) ? $config['read'] : [];
@@ -152,9 +154,24 @@ namespace DB\Connection{
             $this->inTransaction = false;
         }
 
+        /**
+         * 设置错误信息
+         * @param $message
+         * @param $code
+         */
         public function setError($message, $code){
             $this->error = $message;
             $this->errorId = $code;
+        }
+
+        /**
+         * 自动释放连接，主要用于服务端运行时使用的
+         */
+        public function autoReleasePdo(){
+            if($this->autoRelease){
+                $this->pdo["write"] = null;
+                $this->pdo["read"] = null;
+            }
         }
 
     }

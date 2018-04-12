@@ -70,6 +70,9 @@ namespace DB\Query{
          */
         public function __construct(Connection $connection){
             $this->connection = $connection;
+            if(is_null($connection)){
+                return $this;
+            }
             switch ($connection->driver){
                 case "mssql" :
                     $this->grammar = new mssqlGrammar($this);
@@ -634,7 +637,7 @@ namespace DB\Query{
             }
            return [];
         }
-        public function getOn(){
+        public function getOne(){
             return $this->first();
         }
 

@@ -132,6 +132,8 @@ namespace DB\Grammar{
                         //存入 redis 缓存的数据是具备有效期的，第三个参数设计有效期时间，单位：秒， null=使用连接设置的有效时长  0=永久  大于0=实际时间
                         $this->redis->set($redisKey, $result, $this->query->cacheExpireTime);
                     }
+                    //自动释放PDO，也就是数据库连接
+                    $this->releasePDO();
                     return $result;
                 }else{
                     $code = intval($this->statement->errorCode());
@@ -146,6 +148,8 @@ namespace DB\Grammar{
                 }
                 $self->query->error = "code : ".$e->getCode()."<br>error : ".$e->getMessage()."<br>query : ".$queryString;
                 $self->query->errorId = $e->getCode();
+                //自动释放PDO，也就是数据库连接
+                $this->releasePDO();
                 return false;
             }
         }
@@ -177,6 +181,8 @@ namespace DB\Grammar{
                 if($result = $this->redis->get($redisKey)){
                     //成功在 redis 缓存中读取到数据
                     //DB::log("{$queryString}\r\n从缓存读取成功");
+                    //自动释放PDO，也就是数据库连接
+                    $this->releasePDO();
                     return $result;
                 }
             }
@@ -194,8 +200,12 @@ namespace DB\Grammar{
                         if(!is_null($this->redis) && $rows>0 && $this->query->cache){
                             $this->redis->set($redisKey, $rows);
                         }
+                        //自动释放PDO，也就是数据库连接
+                        $this->releasePDO();
                         return $rows;
                     }
+                    //自动释放PDO，也就是数据库连接
+                    $this->releasePDO();
                     return 0;
                     /*
                     if(!$bool){
@@ -221,6 +231,8 @@ namespace DB\Grammar{
                         }
                     }
                     DB::log("Query : {$queryString}\r\nError : ".$e->getMessage()."\r\n", $this->query->connection->errorDisplay['read']);
+                    //自动释放PDO，也就是数据库连接
+                    $this->releasePDO();
                     return 0;
                 }
             }else{
@@ -250,6 +262,8 @@ namespace DB\Grammar{
                 }
             }
             $this->commit();
+            //自动释放PDO，也就是数据库连接
+            $this->releasePDO();
             return $this;
         }
 
@@ -258,7 +272,10 @@ namespace DB\Grammar{
          * @return bool|GrammarBuilder
          */
         public function delete(){
-            return $this->execute('delete');
+            $result = $this->execute('delete');
+            //自动释放PDO，也就是数据库连接
+            $this->releasePDO();
+            return $result;
         }
 
         /**
@@ -266,7 +283,10 @@ namespace DB\Grammar{
          * @return bool|GrammarBuilder
          */
         public function insertIfNotExists(){
-            return $this->execute('insert where not exists');
+            $result = $this->execute('insert where not exists');
+            //自动释放PDO，也就是数据库连接
+            $this->releasePDO();
+            return $result;
         }
 
         /**
@@ -274,7 +294,10 @@ namespace DB\Grammar{
          * @return bool|GrammarBuilder
          */
         public function truncate(){
-            return $this->execute('truncate');
+            $result = $this->execute('truncate');
+            //自动释放PDO，也就是数据库连接
+            $this->releasePDO();
+            return $result;
         }
 
         /**
@@ -822,6 +845,17 @@ namespace DB\Grammar{
             $name = strtolower($name);
             $name = preg_match("/^[a-z][a-z0-9_]*[a-z0-9]$/i",$name) ? $name : md5($name);
             return isset($this->tempParams[$name]) ? $this->getTempParamName($name."_".count($this->tempParams)) : $name;
+        }
+
+        /**
+         * 自动释放数据库连接
+         */
+        public function releasePDO(){
+            //自动释放PDO，也就是数据库连接
+            if($this->query->connection->autoRelease){
+                $this->pdo_read = $this->pdo_write = null;
+                $this->query->connection->autoReleasePdo();
+            }
         }
 
     }

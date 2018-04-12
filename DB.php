@@ -319,7 +319,7 @@ namespace DB{
          */
         public static function log($text, $output=false){
             if(!empty($text)){
-                $dir = defined('ROOT') ? ROOT."/data/Log" : __DIR__."/Log";
+                $dir = defined('ROOT') ? ROOT."/data/log" : __DIR__."/Log";
                 if(!is_dir($dir)){
                     if(!@mkdir($dir)){
                         exit("<font style='font-size:12px;'>目录不可创建：{$dir}</font>");
