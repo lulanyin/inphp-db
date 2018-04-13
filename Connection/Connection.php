@@ -28,6 +28,7 @@ namespace DB\Connection{
         public $redis = null;
 
         public $autoRelease = false;
+        public $SwooleServer = null;
 
         public function __construct(array $config){
             //读
