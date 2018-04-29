@@ -201,11 +201,11 @@ namespace DB\Grammar{
                             $this->redis->set($redisKey, $rows);
                         }
                         //自动释放PDO，也就是数据库连接
-                        $this->releasePDO();
+                        //$this->releasePDO();
                         return $rows;
                     }
                     //自动释放PDO，也就是数据库连接
-                    $this->releasePDO();
+                    //$this->releasePDO();
                     return 0;
                     /*
                     if(!$bool){
@@ -322,6 +322,7 @@ namespace DB\Grammar{
                     if(strripos($type, 'insert')===0){
                         $this->query->lastInsertId[] = $write_pdo->lastInsertId();
                     }
+                    $this->releasePDO();
                 }else{
                     $code = intval($this->statement->errorCode());
                     throw new PDOException($this->statement->errorInfo()[2]."<br>query : ".$this->statement->queryString."<br>code source : ".$code, intval($code));
@@ -335,6 +336,7 @@ namespace DB\Grammar{
                 }
                 $this->query->connection->setError($e->getMessage(), $e->getCode());
                 DB::log("Query : {$queryString}\r\nError : ".$e->getMessage()."\r\n", $this->query->connection->errorDisplay['write']);
+                $this->releasePDO();
                 return false;
             }
             return $this;
@@ -345,7 +347,7 @@ namespace DB\Grammar{
          */
         public function beginTransaction(){
             if(!$this->query->connection->inTransaction){
-                $this->pdo_write->beginTransaction();
+                $this->query->connection->beginTransaction();
             }
         }
 
@@ -354,7 +356,7 @@ namespace DB\Grammar{
          */
         public function rollback(){
             if(!$this->query->connection->inTransaction){
-                $this->pdo_write->rollBack();
+                $this->query->connection->rollBack();
             }
         }
 
@@ -363,7 +365,7 @@ namespace DB\Grammar{
          */
         public function commit(){
             if(!$this->query->connection->inTransaction){
-                $this->pdo_write->commit();
+                $this->query->connection->commit();
             }
         }
 
@@ -852,7 +854,8 @@ namespace DB\Grammar{
          */
         public function releasePDO(){
             //自动释放PDO，也就是数据库连接
-            if($this->query->connection->autoRelease){
+            //仅当可以自动释放，并且主连接没有在事务中，才能执行
+            if($this->query->connection->autoRelease && !$this->query->connection->inTransaction){
                 $this->pdo_read = $this->pdo_write = null;
                 $this->query->connection->autoReleasePdo();
             }
