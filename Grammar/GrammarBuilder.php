@@ -79,7 +79,12 @@ namespace DB\Grammar{
          * @return PDO
          */
         public function getPdo($type='read'){
-            return $type=='write' ? $this->pdo_write : $this->pdo_read;
+            $pdo = $type=='write' ? $this->pdo_write : $this->pdo_read;
+            if($pdo==null){
+                $this->query->connection->connectTo($type);
+                return $this->query->connection->getPdo($type);
+            }
+            return $pdo;
         }
 
         /**
@@ -231,8 +236,6 @@ namespace DB\Grammar{
                         }
                     }
                     DB::log("Query : {$queryString}\r\nError : ".$e->getMessage()."\r\n", $this->query->connection->errorDisplay['read']);
-                    //自动释放PDO，也就是数据库连接
-                    $this->releasePDO();
                     return 0;
                 }
             }else{
@@ -322,7 +325,6 @@ namespace DB\Grammar{
                     if(strripos($type, 'insert')===0){
                         $this->query->lastInsertId[] = $write_pdo->lastInsertId();
                     }
-                    $this->releasePDO();
                 }else{
                     $code = intval($this->statement->errorCode());
                     throw new PDOException($this->statement->errorInfo()[2]."<br>query : ".$this->statement->queryString."<br>code source : ".$code, intval($code));
@@ -336,7 +338,6 @@ namespace DB\Grammar{
                 }
                 $this->query->connection->setError($e->getMessage(), $e->getCode());
                 DB::log("Query : {$queryString}\r\nError : ".$e->getMessage()."\r\n", $this->query->connection->errorDisplay['write']);
-                $this->releasePDO();
                 return false;
             }
             return $this;

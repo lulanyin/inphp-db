@@ -35,16 +35,19 @@ namespace DB\Connection{
             $read_config = isset($config['read']) ? $config['read'] : [];
             $read_config = !empty($read_config) ? $read_config : (isset($config['default']) ? $config['default'] : []);
             $read_config = !empty($read_config) ? $read_config : (!empty($config) ? $config : null);
+            $this->config["read"] = $read_config;
             //写
             $write_config = isset($config['write']) ? $config['write'] : [];
             $write_config = !empty($write_config) ? $write_config : (isset($config['default']) ? $config['default'] : []);
             $write_config = !empty($write_config) ? $write_config : (!empty($config) ? $config : null);
+            $this->config["write"] = $write_config;
             if($read_config===null || $read_config===null){
                 DB::log("数据库连接配置未设置", true);
             }
-            //连接数据库
-            $this->connect($read_config, 'read');
-            $this->connect($write_config, 'write');
+            //初始化数据
+            $this->init($read_config, "read");
+            $this->init($write_config, "write");
+
             //尝试连接redis
             if (extension_loaded('redis')) {
                 //尝试在缓存中获取，默认使用 redis 扩展
@@ -57,12 +60,14 @@ namespace DB\Connection{
             }
         }
 
-        public function connect(array $config=[], $type){
-            $this->config[$type] = $config;
+        public function init($config, $type){
             $this->driver = isset($config["driver"]) ? $config["driver"] : "mysql";
             $this->database[$type] = isset($config["database"]) ? $config["database"] : "z_db";
             $this->prefix[$type] = isset($config["prefix"]) ? $config["prefix"] : "db_";
             $this->errorDisplay[$type] = isset($config["error_display"]) ? $config["error_display"] : false;
+        }
+
+        public function connect(array $config=[], $type){
             $username = isset($config["user"]) ? $config["user"] : $this->database[$type];
             $password = isset($config["pass"]) ? $config["pass"] : "";
             $host = isset($config["host"]) ? $config["host"] : "127.0.0.1";
@@ -99,8 +104,10 @@ namespace DB\Connection{
                 $this->pdo[$type]->setAttribute(PDO::ATTR_EMULATE_PREPARES, true);//允许PDO模拟预处理语句
                 $this->pdo[$type]->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);//这个不是必须的，但是建议加上，这样在脚本出错时，不会停止运行，而是会抛出异常！
                 $this->success = true;
+                return true;
             }catch (PDOException $e){
                 $this->connectFail($e, $type);
+                return false;
             }
         }
 
@@ -108,12 +115,16 @@ namespace DB\Connection{
             DB::log($e->getMessage(), $this->errorDisplay[$type]);
         }
 
+        public function connectTo($type="read"){
+            return $this->connect($this->config[$type], $type);
+        }
+
         /**
          * @param string $type
          * @return PDO
          */
         public function getPdo($type='read'){
-            return $this->pdo[$type];
+            return isset($this->pdo[$type]) ? $this->pdo[$type] : null;
         }
 
         /**
@@ -130,8 +141,15 @@ namespace DB\Connection{
          */
         public function beginTransaction(){
             if(!$this->inTransaction){
-                $this->pdo["write"]->beginTransaction();
-                $this->inTransaction = true;
+                if(isset($this->pdo["write"])){
+                    $this->pdo["write"]->beginTransaction();
+                    $this->inTransaction = true;
+                }else{
+                    $this->connectTo("write");
+                    if($this->success){
+                        $this->beginTransaction();
+                    }
+                }
             }
         }
 
