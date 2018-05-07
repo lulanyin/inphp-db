@@ -81,8 +81,18 @@ namespace DB\Grammar{
         public function getPdo($type='read'){
             $pdo = $type=='write' ? $this->pdo_write : $this->pdo_read;
             if($pdo==null){
-                $this->query->connection->connectTo($type);
-                return $this->query->connection->getPdo($type);
+                $pdo = $this->query->connection->getPdo($type);
+                if(is_null($pdo)){
+                    $this->query->connection->connectTo($type);
+                    if($this->query->connection->success){
+                        $pdo = $this->query->connection->getPdo($type);
+                        if($type=="read"){
+                            $this->pdo_read = $pdo;
+                        }else{
+                            $this->pdo_read = $pdo;
+                        }
+                    }
+                }
             }
             return $pdo;
         }
@@ -257,14 +267,21 @@ namespace DB\Grammar{
          */
         public function insert(){
             list($queryString, $params) = $this->compileToQueryString('insert');
-            $this->beginTransaction();
+            $needTransaction = !$this->query->connection->inTransaction;
+            if($needTransaction){
+                $this->beginTransaction();
+            }
             foreach ($queryString as $key=>$q){
                 if(!$this->execute('insert', $q, isset($params[$key]) ? $params[$key] : [])){
-                    $this->rollBack();
+                    if($needTransaction) {
+                        $this->rollBack();
+                    }
                     return false;
                 }
             }
-            $this->commit();
+            if($needTransaction) {
+                $this->commit();
+            }
             //自动释放PDO，也就是数据库连接
             $this->releasePDO();
             return $this;
@@ -348,7 +365,14 @@ namespace DB\Grammar{
          */
         public function beginTransaction(){
             if(!$this->query->connection->inTransaction){
-                $this->query->connection->beginTransaction();
+                $pdo = $this->query->connection->getPdo("write");
+                if(is_null($pdo)){
+                    $this->query->connection->connectTo("write");
+                    if($this->query->connection->success){
+                        $pdo = $this->query->connection->getPdo("write");
+                    }
+                }
+                $pdo->beginTransaction();
             }
         }
 
@@ -357,7 +381,10 @@ namespace DB\Grammar{
          */
         public function rollback(){
             if(!$this->query->connection->inTransaction){
-                $this->query->connection->rollBack();
+                $pdo = $this->query->connection->getPdo("write");
+                if(!is_null($pdo)){
+                    $pdo->rollBack();
+                }
             }
         }
 
@@ -366,7 +393,10 @@ namespace DB\Grammar{
          */
         public function commit(){
             if(!$this->query->connection->inTransaction){
-                $this->query->connection->commit();
+                $pdo = $this->query->connection->getPdo("write");
+                if(!is_null($pdo)){
+                    $pdo->commit();
+                }
             }
         }
 

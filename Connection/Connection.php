@@ -147,7 +147,8 @@ namespace DB\Connection{
                 }else{
                     $this->connectTo("write");
                     if($this->success){
-                        $this->beginTransaction();
+                        $this->pdo["write"]->beginTransaction();
+                        $this->inTransaction = true;
                     }
                 }
             }
