@@ -27,7 +27,7 @@ namespace DB\Connection{
         public $errorDisplay = [];
         public $redis = null;
 
-        public $autoRelease = false;
+        public $autoRelease = true;
         public $SwooleServer = null;
 
         public function __construct(array $config){
