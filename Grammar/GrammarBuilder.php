@@ -255,17 +255,41 @@ namespace DB\Grammar{
 
         /**
          * 执行更改，更改仅一条语句，不成功就是失败，不需要在此定义事务
+         * @param int $times
          * @return bool|GrammarBuilder
          */
-        public function update(){
+        public function update($times=0){
+            $tableName = $this->compileTable("write");
+            if(in_array($tableName, $this->query->connection->lockTables)){
+                if($times<10){
+                    //睡它100毫秒后再执行
+                    usleep(100000);
+                    return $this->update($times+1);
+                }else{
+                    $this->query->connection->setError("线程繁忙，稍后重试", 502);
+                    return false;
+                }
+            }
             return $this->execute('update');
         }
 
         /**
          * 执行插入，插入涉及到多各插入，需要在发生错误时回滚
+         * @param int $times
          * @return bool|GrammarBuilder
          */
-        public function insert(){
+        public function insert($times=0){
+            $tableName = $this->compileTable("write");
+            if(in_array($tableName, $this->query->connection->lockTables)){
+                if($times<10){
+                    //睡它100毫秒后再执行
+                    usleep(100000);
+                    return $this->insert($times+1);
+                }else{
+                    $this->query->connection->setError("线程繁忙，稍后重试", 502);
+                    return false;
+                }
+            }
             list($queryString, $params) = $this->compileToQueryString('insert');
             $needTransaction = !$this->query->connection->inTransaction;
             if($needTransaction){
@@ -289,9 +313,21 @@ namespace DB\Grammar{
 
         /**
          * 执行删除，更改仅一条语句，不成功就是失败，不需要在此定义事务
+         * @param int $times
          * @return bool|GrammarBuilder
          */
-        public function delete(){
+        public function delete($times=0){
+            $tableName = $this->compileTable("write");
+            if(in_array($tableName, $this->query->connection->lockTables)){
+                if($times<10){
+                    //睡它100毫秒后再执行
+                    usleep(100000);
+                    return $this->delete($times+1);
+                }else{
+                    $this->query->connection->setError("线程繁忙，稍后重试", 502);
+                    return false;
+                }
+            }
             $result = $this->execute('delete');
             //自动释放PDO，也就是数据库连接
             $this->releasePDO();
@@ -300,9 +336,21 @@ namespace DB\Grammar{
 
         /**
          * 执行条件式插入，当条件数据不存在时插入，仅可插入一条记录，不成功就是失败，不需要在此定义事务
+         * @param int $times
          * @return bool|GrammarBuilder
          */
-        public function insertIfNotExists(){
+        public function insertIfNotExists($times=0){
+            $tableName = $this->compileTable("write");
+            if(in_array($tableName, $this->query->connection->lockTables)){
+                if($times<10){
+                    //睡它100毫秒后再执行
+                    usleep(100000);
+                    return $this->insertIfNotExists($times+1);
+                }else{
+                    $this->query->connection->setError("线程繁忙，稍后重试", 502);
+                    return false;
+                }
+            }
             $result = $this->execute('insert where not exists');
             //自动释放PDO，也就是数据库连接
             $this->releasePDO();
@@ -311,9 +359,21 @@ namespace DB\Grammar{
 
         /**
          * 清空表，重新定义自增 ID
+         * @param int $times
          * @return bool|GrammarBuilder
          */
-        public function truncate(){
+        public function truncate($times=0){
+            $tableName = $this->compileTable("write");
+            if(in_array($tableName, $this->query->connection->lockTables)){
+                if($times<10){
+                    //睡它100毫秒后再执行
+                    usleep(100000);
+                    return $this->truncate($times+1);
+                }else{
+                    $this->query->connection->setError("线程繁忙，稍后重试", 502);
+                    return false;
+                }
+            }
             $result = $this->execute('truncate');
             //自动释放PDO，也就是数据库连接
             $this->releasePDO();

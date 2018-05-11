@@ -27,7 +27,9 @@ namespace DB\Connection{
         public $errorDisplay = [];
         public $redis = null;
 
-        public $autoRelease = true;
+        public $lockTables = [];
+
+        public $autoRelease = false;
         public $SwooleServer = null;
 
         public function __construct(array $config){
@@ -191,6 +193,27 @@ namespace DB\Connection{
             if($this->autoRelease){
                 $this->pdo["write"] = null;
                 $this->pdo["read"] = null;
+            }
+        }
+
+        /**
+         * 加锁某个表
+         * @param $tableName
+         */
+        public function lock($tableName){
+            if(!in_array($tableName, $this->lockTables)){
+                $this->lockTables[] = $tableName;
+            }
+        }
+
+        /**
+         * 释放锁定
+         * @param $tableName
+         */
+        public function unLock($tableName){
+            if(in_array($tableName, $this->lockTables)){
+                $index = array_search($tableName, $this->lockTables);
+                unset($this->lockTables[$index]);
             }
         }
 
