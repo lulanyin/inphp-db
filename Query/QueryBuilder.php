@@ -1020,11 +1020,12 @@ namespace DB\Query{
          * @param $column
          * @param $start
          * @param $end
+         * @param boolean $datetime 字段是否是datetime类型，如果不是，默认使用int 10位长度去处理
          * @return QueryBuilder
          */
-        public function whereDateTimeBetween($column, $start, $end){
-            $start = $this->translateToDatetime($start);
-            $end = $this->translateToDatetime($end);
+        public function whereDateTimeBetween($column, $start, $end, $datetime=true){
+            $start = $datetime ? $this->translateToDatetime($start) : $start;
+            $end = $datetime ? $this->translateToDatetime($end) : $end;
             return $this->whereBetween($column, ["'{$start}'", "'{$end}'"]);
         }
 
@@ -1032,10 +1033,11 @@ namespace DB\Query{
          * 从什么时间开始
          * @param $column
          * @param $start
+         * @param boolean $datetime 字段是否是datetime类型，如果不是，默认使用int 10位长度去处理
          * @return QueryBuilder
          */
-        public function whereDateTimeStartAt($column, $start){
-            $start = $this->translateToDatetime($start);
+        public function whereDateTimeStartAt($column, $start, $datetime=true){
+            $start = $datetime ? $this->translateToDatetime($start) : $start;
             return $this->whereRaw("{$column}>='{$start}'");
         }
 
@@ -1043,10 +1045,11 @@ namespace DB\Query{
          * 到什么时间结束
          * @param $column
          * @param $end
+         * @param boolean $datetime 字段是否是datetime类型，如果不是，默认使用int 10位长度去处理
          * @return QueryBuilder
          */
-        public function whereDateTimeEndAt($column, $end){
-            $end = $this->translateToDatetime($end);
+        public function whereDateTimeEndAt($column, $end, $datetime=true){
+            $end = $datetime ? $this->translateToDatetime($end) : $end;
             return $this->whereRaw("{$column}<='{$end}'");
         }
 
@@ -1054,11 +1057,13 @@ namespace DB\Query{
          * 查询，过去N个月
          * @param $column
          * @param $number
+         * @param boolean $datetime 字段是否是datetime类型，如果不是，默认使用int 10位长度去处理
          * @return QueryBuilder
          */
-        public function whereMonthAfter($column, $number){
+        public function whereMonthAfter($column, $number, $datetime=true){
             $number = intval($number);
             if($number>0){
+                $column = $datetime ? $column : "from_unixtime({$column})";
                 $this->whereRaw("{$column} between date_sub(now(), interval {$number} month) and now()");
             }
             return $this;
@@ -1068,11 +1073,13 @@ namespace DB\Query{
          * 查询过去 N 个月之前的数据
          * @param $column
          * @param $number
+         * @param boolean $datetime 字段是否是datetime类型，如果不是，默认使用int 10位长度去处理
          * @return QueryBuilder
          */
-        public function whereMonthBefore($column, $number){
+        public function whereMonthBefore($column, $number, $datetime=true){
             $number = intval($number);
             if($number>0){
+                $column = $datetime ? $column : "from_unixtime({$column})";
                 $this->whereRaw("{$column}<=date_sub(now(), interval {$number} month)");
             }
             return $this;
@@ -1082,15 +1089,17 @@ namespace DB\Query{
          * 查询过去 N1 个月份到 N2 个月份之内的数据
          * @param $column
          * @param $month
+         * @param boolean $datetime 字段是否是datetime类型，如果不是，默认使用int 10位长度去处理
          * @return QueryBuilder
          * ->whereMonthBetween("时间字段", [6, 12]) 查询过去 6~12个月份内的数据
          * ->whereMonthBetween("时间字段", 6) 查询过去 6 个月内的数据
          */
-        public function whereMonthBetween($column, $month){
+        public function whereMonthBetween($column, $month, $datetime=true){
             $month = is_array($month) ? $month : [intval($month)];
             $start = isset($month[1]) ? $month[1] : $month[0];
             $start = "date_sub(now(), interval {$start} month)";
             $end = isset($month[1]) ? "date_sub(now(), interval {$month[0]} month)" : "now()";
+            $column = $datetime ? $column : "from_unixtime({$column})";
             $this->whereRaw("{$column} between {$start} and {$end}");
             return $this;
         }
@@ -1099,11 +1108,13 @@ namespace DB\Query{
          * 查询过去 N 年之前的数据
          * @param $column
          * @param $number
+         * @param boolean $datetime 字段是否是datetime类型，如果不是，默认使用int 10位长度去处理
          * @return QueryBuilder
          */
-        public function whereYearBefore($column, $number){
+        public function whereYearBefore($column, $number, $datetime=true){
             $number = intval($number);
             if($number>0){
+                $column = $datetime ? $column : "from_unixtime({$column})";
                 $this->whereRaw("{$column}<=date_sub(now(), interval {$number} year)");
             }
             return $this;
@@ -1113,13 +1124,15 @@ namespace DB\Query{
          * 查询过去 N1 个年份到 N2 个年份之内的数据
          * @param $column
          * @param $year
+         * @param boolean $datetime 字段是否是datetime类型，如果不是，默认使用int 10位长度去处理
          * @return QueryBuilder
          */
-        public function whereYearBetween($column, $year){
+        public function whereYearBetween($column, $year, $datetime=true){
             $year = is_array($year) ? $year : [intval($year)];
             $start = isset($year[1]) ? $year[1] : $year[0];
             $start = "date_sub(now(), interval {$start} year)";
             $end = isset($year[1]) ? "date_sub(now(), interval {$year[0]} year)" : "now()";
+            $column = $datetime ? $column : "from_unixtime({$column})";
             $this->whereRaw("{$column} between {$start} and {$end}");
             return $this;
         }
@@ -1128,9 +1141,11 @@ namespace DB\Query{
          * 查询N周之前的，默认为本周
          * @param $column
          * @param int $number
+         * @param boolean $datetime 字段是否是datetime类型，如果不是，默认使用int 10位长度去处理
          * @return QueryBuilder
          */
-        public function whereWeek($column, $number = 0){
+        public function whereWeek($column, $number = 0, $datetime=true){
+            $column = $datetime ? $column : "from_unixtime({$column})";
             return $this->whereRaw("YEARWEEK(DATE_FORMAT({$column},'%Y-%m-%d')) = YEARWEEK(NOW())-{$number}");
         }
 
@@ -1138,9 +1153,11 @@ namespace DB\Query{
          * 查询N天之前的数据，默认今天
          * @param $column
          * @param int $number
+         * @param boolean $datetime 字段是否是datetime类型，如果不是，默认使用int 10位长度去处理
          * @return QueryBuilder
          */
-        public function whereDay($column, $number=0){
+        public function whereDay($column, $number=0, $datetime=true){
+            $column = $datetime ? $column : "from_unixtime({$column})";
             return $this->whereRaw("TO_DAYS(NOW())-TO_DAYS({$column})<={$number}");
         }
 
