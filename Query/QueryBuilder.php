@@ -1146,7 +1146,7 @@ namespace DB\Query{
          */
         public function whereWeek($column, $number = 0, $datetime=true){
             $column = $datetime ? $column : "from_unixtime({$column})";
-            return $this->whereRaw("YEARWEEK(DATE_FORMAT({$column},'%Y-%m-%d')) = YEARWEEK(NOW())-{$number}");
+            return $this->whereRaw("YEARWEEK({$column}, 1) = YEARWEEK(NOW(), 1)-{$number}");
         }
 
         /**
