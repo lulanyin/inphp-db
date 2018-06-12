@@ -139,8 +139,8 @@ namespace DB\Grammar{
             $read_pdo = $this->getPdo();
             try{
                 $this->statement = $read_pdo->prepare($queryString);
-                $this->bindValues();
-                if($this->statement->execute()){
+                //$this->bindValues();
+                if($this->statement->execute($this->params)){
                     $this->statement->setFetchMode($this->query->fetchModel);
                     $result = $this->statement->fetchAll();
                     if(!empty($result) && !is_null($this->redis) && $this->query->cache){
@@ -206,8 +206,8 @@ namespace DB\Grammar{
             $read_pdo = $this->getPdo();
             if($this->statement = $read_pdo->prepare($queryString)){
                 try{
-                    $this->bindValues();
-                    $this->statement->execute();
+                    //$this->bindValues();
+                    $this->statement->execute($this->params);
                     $result = $this->statement->fetchAll(PDO::FETCH_NUM);
                     if(!empty($result)){
                         $rows = $result[0][0];
@@ -396,8 +396,8 @@ namespace DB\Grammar{
             $write_pdo = $this->getPdo('write');
             try{
                 $this->statement = $write_pdo->prepare($queryString);
-                $this->bindValues();
-                if($this->statement->execute()){
+                //$this->bindValues();
+                if($this->statement->execute($this->params)){
                     $this->query->affectRows += $this->statement->rowCount();
                     if(strripos($type, 'insert')===0){
                         $this->query->lastInsertId[] = $write_pdo->lastInsertId();
@@ -678,8 +678,10 @@ namespace DB\Grammar{
                         $string = [];
                         foreach ($value as $key=>$val){
                             $fieldName = $this->getTempParamName($where['column']."_".$key);
-                            $params[$fieldName] = $val;
-                            $string[] = ":{$fieldName}";
+                            //$params[$fieldName] = $val;
+                            $params[] = $val;
+                            //$string[] = ":{$fieldName}";
+                            $string[] = "?";
                         }
                         $value = join(",", $string);
                     }
@@ -702,11 +704,13 @@ namespace DB\Grammar{
                     $params = [];
                     $value = $where['value'];
                     $value = is_array($value) ? $value : explode(" and ", $value);
-                    $fieldName1 = $this->getTempParamName($where['column']."_1");
-                    $fieldName2 = $this->getTempParamName($where['column']."_2");
-                    $params[$fieldName1] = $value[0];
-                    $params[$fieldName2] = $value[1];
-                    $value = ":{$fieldName1} and :{$fieldName2}";
+                    $fieldName1 = $this->getTempParamName($where['column']);
+                    $fieldName2 = $this->getTempParamName($where['column']);
+                    //$params[$fieldName1] = $value[0];
+                    //$params[$fieldName2] = $value[1];
+                    $params = [$value[0], $value[1]];
+                    //$value = ":{$fieldName1} and :{$fieldName2}";
+                    $value = "? and ?";
                     return [
                         "string" => "{$where['column']} ".($where['type']=='NotBetween' ? "not " : "")."between {$value}",
                         "boolean" => $where['boolean'],
@@ -736,8 +740,10 @@ namespace DB\Grammar{
                         $value = $where['value'];
                     }else{
                         $fieldName = $this->getTempParamName($where['column']);
-                        $params[$fieldName] = $where['value'];
-                        $value = ":{$fieldName}";
+                        //$params[$fieldName] = $where['value'];
+                        $params[] = $where['value'];
+                        //$value = ":{$fieldName}";
+                        $value = "?";
                     }
                     return [
                         'string' => "find_in_set({$value}, {$where['column']})",
@@ -752,8 +758,10 @@ namespace DB\Grammar{
                     $value = strrchr($value, "'")==="'" ? substr($value, -1) : $value;
                     //$value = str_replace("'", "\\'", $value);
                     $fieldName = $this->getTempParamName($where['column']);
-                    $params[$fieldName] = $value;
-                    $value = ":{$fieldName}";
+                    //$params[$fieldName] = $value;
+                    $params[] = $value;
+                    //$value = ":{$fieldName}";
+                    $value = "?";
                     return [
                         'string' => "{$where['column']} ".($where['type']=='NotLike' ? 'not ' : '')."like {$value}",
                         'boolean' => $where['boolean'],
@@ -766,8 +774,10 @@ namespace DB\Grammar{
                         $value = $where['value'];
                     }else {
                         $fieldName = $this->getTempParamName($where['column']);
-                        $params[$fieldName] = $where['value'];
-                        $value = ":{$fieldName}";
+                        //$params[$fieldName] = $where['value'];
+                        $params[] = $where['value'];
+                        //$value = ":{$fieldName}";
+                        $value = "?";
                     }
                     return [
                         'string' => "{$where['column']}{$where['operator']}{$value}",
@@ -850,9 +860,11 @@ namespace DB\Grammar{
                     $sets = is_array(end($this->query->set)) ? end($this->query->set) : $this->query->set;
                     foreach($sets as $set){
                         $fieldName = $this->getTempParamName($set['field']);
-                        $columns[] = "`{$set['field']}`=".($set['include_field']===true ? $set['value'] : ":{$fieldName}");
+                        //$columns[] = "`{$set['field']}`=".($set['include_field']===true ? $set['value'] : ":{$fieldName}");
+                        $columns[] = "`{$set['field']}`=".($set['include_field']===true ? $set['value'] : "?");
                         if($set['include_field']===false){
-                            $params[$fieldName] = $set['value'];
+                            //$params[$fieldName] = $set['value'];
+                            $params[] = $set['value'];
                         }
                     }
                     return [join(",",$columns), $params];
@@ -865,9 +877,11 @@ namespace DB\Grammar{
                         $thisColumns = $thisValues = $thisParams = [];
                         foreach($set_array as $set){
                             $thisColumns[] = "`{$set['field']}`";
-                            $thisValues[] = $set['include_field']===true ? $set['value'] : ":{$set['field']}";
+                            //$thisValues[] = $set['include_field']===true ? $set['value'] : ":{$set['field']}";
+                            $thisValues[] = $set['include_field']===true ? $set['value'] : "?";
                             if($set['include_field']===false){
-                                $thisParams["{$set['field']}"] = $set["value"];
+                                //$thisParams["{$set['field']}"] = $set["value"];
+                                $thisParams[] = $set["value"];
                             }
                         }
                         $columns[] = "(".join(",", $thisColumns).")";
@@ -882,9 +896,11 @@ namespace DB\Grammar{
                     $columns = $values = $params = [];
                     foreach($sets as $set){
                         $columns[] = "`{$set['field']}`";
-                        $values[] = $set['include_field']===true ? $set['value'] : ":{$set['field']}";
+                        //$values[] = $set['include_field']===true ? $set['value'] : ":{$set['field']}";
+                        $values[] = $set['include_field']===true ? $set['value'] : "?";
                         if($set['include_field']===false){
-                            $params[$set['field']] = $set['value'];
+                            //$params[$set['field']] = $set['value'];
+                            $params[] = $set['value'];
                         }
                     }
                     return ["(".join(",", $columns).")", join(",", $values), $params];
@@ -941,8 +957,8 @@ namespace DB\Grammar{
          */
         public function getTempParamName($name){
             $name = strtolower($name);
-            $name = preg_match("/^[a-z][a-z0-9_]*[a-z0-9]$/i",$name) ? $name : md5($name);
-            return isset($this->tempParams[$name]) ? $this->getTempParamName($name."_".count($this->tempParams)) : $name;
+            $name = preg_match("/^[a-z0-9][a-z0-9_]*[a-z0-9]$/i",$name) ? $name : md5($name);
+            return isset($this->tempParams[$name]) ? $this->getTempParamName(count($this->tempParams)."_".$name) : $name;
         }
 
         /**

@@ -1038,7 +1038,7 @@ namespace DB\Query{
          */
         public function whereDateTimeStartAt($column, $start, $datetime=true){
             $start = $datetime ? $this->translateToDatetime($start) : $start;
-            return $this->whereRaw("{$column}>='{$start}'");
+            return $this->where($column, ">=", $start);
         }
 
         /**
@@ -1050,7 +1050,7 @@ namespace DB\Query{
          */
         public function whereDateTimeEndAt($column, $end, $datetime=true){
             $end = $datetime ? $this->translateToDatetime($end) : $end;
-            return $this->whereRaw("{$column}<='{$end}'");
+            return $this->where($column, "<=", $end);
         }
 
         /**
@@ -1158,7 +1158,7 @@ namespace DB\Query{
          */
         public function whereDay($column, $number=0, $datetime=true){
             $column = $datetime ? $column : "from_unixtime({$column})";
-            return $this->whereRaw("TO_DAYS(NOW())-TO_DAYS({$column})<={$number}");
+            return $this->where("TO_DAYS(NOW())-TO_DAYS({$column})<={$number}");
         }
 
 
