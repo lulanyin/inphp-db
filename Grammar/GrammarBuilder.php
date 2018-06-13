@@ -321,7 +321,7 @@ namespace DB\Grammar{
             if(in_array($tableName, $this->query->connection->lockTables)){
                 if($times<10){
                     //睡它100毫秒后再执行
-                    usleep(100000);
+                    //usleep(100000);
                     return $this->delete($times+1);
                 }else{
                     $this->query->connection->setError("线程繁忙，稍后重试", 502);
