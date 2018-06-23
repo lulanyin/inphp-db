@@ -414,7 +414,7 @@ namespace DB\Grammar{
                     }
                 }
                 $this->query->connection->setError($e->getMessage(), $e->getCode());
-                DB::log("Query : {$queryString}\r\nError : ".$e->getMessage()."\r\n", $this->query->connection->errorDisplay['write']);
+                DB::log("Query : {$queryString}\r\nParams : ".json_encode($this->params, 256)."\r\nError : ".$e->getMessage()."\r\n", $this->query->connection->errorDisplay['write']);
                 return false;
             }
             return $this;
@@ -513,7 +513,7 @@ namespace DB\Grammar{
                     if(strripos($tableName, " ")){
                         $tableName = substr($tableName, 0, strripos($tableName, " "));
                     }
-                    $queryString = "insert into {$tableName} {$columns} select {$values} from TEMP1 where not exists(select * from {$tableName}{$where});";
+                    $queryString = "insert into {$tableName} {$columns} select {$values} from dual where not exists(select * from {$tableName}{$where});";
                     $params = array_merge($params1, $params2);
                     break;
                 case "truncate" :
