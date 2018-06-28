@@ -283,7 +283,6 @@ namespace DB\Grammar{
             if(in_array($tableName, $this->query->connection->lockTables)){
                 if($times<10){
                     //睡它100毫秒后再执行
-                    usleep(100000);
                     return $this->insert($times+1);
                 }else{
                     $this->query->connection->setError("线程繁忙，稍后重试", 502);
@@ -391,8 +390,10 @@ namespace DB\Grammar{
         public function execute($type, $queryString=null, $params=null, $reconnectTime=0){
             if(is_null($queryString) && is_null($params)){
                 list($queryString, $params) = $this->compileToQueryString($type);
+                $this->flushParams($params);
+            }else{
+                $this->params = $params;
             }
-            $this->flushParams($params);
             $write_pdo = $this->getPdo('write');
             try{
                 $this->statement = $write_pdo->prepare($queryString);
@@ -494,7 +495,7 @@ namespace DB\Grammar{
                 case "insert" :
                     //插入，insert into {table name}(columns) values({$values})
                     list($columns, $values, $params) = $this->compileSet($type);
-                    $this->tempParams = array_merge($this->tempParams, $params);
+                    //$this->tempParams = array_merge($this->tempParams, $params);
                     $queryString = [];
                     if(strripos($tableName, " ")){
                         $tableName = substr($tableName, 0, strripos($tableName, " "));
