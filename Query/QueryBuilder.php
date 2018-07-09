@@ -1158,7 +1158,7 @@ namespace DB\Query{
          */
         public function whereDay($column, $number=0, $datetime=true){
             $column = $datetime ? $column : "from_unixtime({$column})";
-            return $this->where("TO_DAYS(NOW())-TO_DAYS({$column})<={$number}");
+            return $this->whereRaw("TO_DAYS(NOW())-TO_DAYS({$column})<={$number}");
         }
 
 
