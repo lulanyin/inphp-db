@@ -10,8 +10,8 @@ $config = [
         'port' => '3306',           //端口
         'user' => 'root',           //账号
         'pass' => '123456',         //密码
-        'database' => 'z_cms',      //数据库名
-        'prefix' => 'z_'            //各表的统一前缀
+        'database' => 'db',      //数据库名
+        'prefix' => 'pre_'            //各表的统一前缀
     ]
 ];
 //初始化 DB 类 （本系统中，引用 use DB\DB;将会自动初始化连接数据库）
