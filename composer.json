@@ -1,14 +1,14 @@
 {
-    "name": "lanyin/db",
+    "name": "lulanyin/db",
     "description": "PHP数据库操作类",
     "keywords": [
         "db",
         "PHP数据库操作类"
     ],
-    "minimum-stability": "dev",
+    "minimum-stability": "dev-master",
     "authors": [
         {
-            "name": "lanyin",
+            "name": "lulanyin",
             "email": "me@lanyin.lu"
         }
     ],
