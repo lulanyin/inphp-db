@@ -5,7 +5,7 @@
         "db",
         "PHP数据库操作类"
     ],
-    "minimum-stability": "v1.0",
+    "minimum-stability": "stable",
     "authors": [
         {
             "name": "lanyin",
