@@ -64,8 +64,8 @@ namespace DB\Connection{
 
         public function init($config, $type){
             $this->driver = isset($config["driver"]) ? $config["driver"] : "mysql";
-            $this->database[$type] = isset($config["database"]) ? $config["database"] : "z_db";
-            $this->prefix[$type] = isset($config["prefix"]) ? $config["prefix"] : "db_";
+            $this->database[$type] = isset($config["database"]) ? $config["database"] : "db";
+            $this->prefix[$type] = isset($config["prefix"]) ? $config["prefix"] : null;
             $this->errorDisplay[$type] = isset($config["error_display"]) ? $config["error_display"] : false;
         }
 

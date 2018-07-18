@@ -1,0 +1,24 @@
+{
+    "name": "lanyin/db",
+    "description": "PHP数据库操作类",
+    "keywords": [
+        "db",
+        "PHP数据库操作类"
+    ],
+    "minimum-stability": "stable",
+    "authors": [
+        {
+            "name": "lanyin",
+            "email": "me@lanyin.lu"
+        }
+    ],
+    "require": {
+        "php": ">=5.6"
+    },
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "DB\\": "src/"
+        }
+    }
+}
