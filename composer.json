@@ -5,7 +5,7 @@
         "db",
         "PHP数据库操作类"
     ],
-    "minimum-stability": "dev-master",
+    "minimum-stability": "dev",
     "authors": [
         {
             "name": "lulanyin",
