@@ -9,9 +9,9 @@
 // | Author: liu21st <liu21st@gmail.com>
 // +----------------------------------------------------------------------
 
-namespace DB\Cache\driver;
+namespace Small\DB\Cache\driver;
 
-use DB\Cache\Driver;
+use Small\DB\Cache\Driver;
 
 /**
  * Redis缓存驱动，适合单机部署、有前端代理实现高可用的场景，性能最好
@@ -153,7 +153,7 @@ class Redis extends Driver
      */
     public function rm($name)
     {
-        return $this->handler->delete($this->getCacheKey($name));
+        return $this->handler->del($this->getCacheKey($name));
     }
 
     /**

@@ -9,9 +9,9 @@
 // | Author: liu21st <liu21st@gmail.com>
 // +----------------------------------------------------------------------
 
-namespace DB\Cache\driver;
+namespace Small\DB\Cache\driver;
 
-use DB\Cache\Driver;
+use Small\DB\Cache\Driver;
 
 /**
  * 文件类型缓存类

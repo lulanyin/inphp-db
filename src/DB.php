@@ -1,339 +1,178 @@
 <?php
+namespace Small\DB;
+
+use PDO;
+use PDOException;
+use Small\DB\Swoole\Pool;
+use Swoole\Coroutine;
+
 /**
- * Created by PhpStorm.
- * Date: 2017/6/17
- * Time: PM5:17
+ *
+ * Class DB
+ * @package Small\DB
  */
-namespace DB{
+class DB
+{
 
-    use DB\Connection\Connection;
-    use DB\Query\QueryBuilder;
-    use PDO;
+    public static $config = [];
 
-    class DB{
-        /**
-         * 连接池
-         * @var array
-         */
-        public static $connections = [];
-
-        /**
-         * 数据库连接初始化
-         * @param array $config
-         * @param string $name
-         */
-        public static function init(array $config, $name='default'){
-            $connection = new Connection($config);
-            $connection->connectTo("read");
-            $connection->connectTo("write");
-            if($connection->success)
-                self::$connections[$name] = $connection;
-            else
-                self::log($connection->error, true);
+    /**
+     * 获取数据库配置
+     * @return array
+     */
+    public static function getConfig(){
+        if(!empty(self::$config)){
+            return self::$config;
         }
-
-
-        /**
-         * 获取数据表前缀
-         * @param string $name 链接名称
-         * @param string $type 读写分离的话需要用到，不过一般读写分离的话，数据表的前缀一般都是一样的。
-         * @return string
-         */
-        public static function getTablePrefix($name='default', $type='read'){
-            $connection = self::getConnection($name);
-            return $connection->prefix[$type];
+        if(defined("DB_CONFIG")){
+            self::$config = is_string(DB_CONFIG) ? (is_file(DB_CONFIG) ? require(DB_CONFIG) : []) : (is_array(DB_CONFIG) ? DB_CONFIG : []);
         }
+        return self::$config;
+    }
 
-        /**
-         * 获取数据库名称
-         * @param string $name 链接名称
-         * @param string $type 读写分离的话需要用到
-         * @return mixed
-         */
-        public static function getDBName($name='default', $type='read'){
-            $connection = self::getConnection($name);
-            return $connection->database[$type];
-        }
-        /**
-         * @param string $table 需要操作的表名称
-         * @param string $name 链接名称
-         * @return QueryBuilder
-         */
-        public static function from($table, $name='default'){
-            $connection = self::getConnection($name);
-            $query = new QueryBuilder($connection);
-            return $query->from($table);
-        }
+    /**
+     * @param $table
+     * @param null $as
+     * @return Query|Swoole\Query
+     */
+    public static function from($table, $as = null)
+    {
+        $query = defined("DB_SWOOLE_POOLS") ? new \Small\DB\Swoole\Query() : new Query();
+        return $query->from($table, $as);
+    }
 
-        /**
-         * 获取一个新的 QueryBuilder，不带查询
-         * @param string $name
-         * @return QueryBuilder
-         */
-        public static function getQuery($name="default"){
-            $connection = self::getConnection($name);
-            return new QueryBuilder($connection);
-        }
-        /**
-         * @param $table
-         * @return QueryBuilder
-         */
-        public static function table($table){
-            return self::from($table);
-        }
-
-        /**
-         * 查询开始 DB::select('*')->from(...)-> ...
-         * @param array $columns
-         * @param string $name
-         * @return QueryBuilder
-         */
-        public static function select($columns=['*'], $name='default'){
-            $connection = self::getConnection($name);
-            $query = new QueryBuilder($connection);
-            return $query->select($columns);
-        }
-
-        /**
-         * 开始事务
-         * @param string $name
-         */
-        public static function beginTransaction($name='default'){
-            $connection = self::getConnection($name);
-            $connection->beginTransaction();
-        }
-
-        /**
-         * 事务回滚
-         * @param string $name
-         */
-        public static function rollBack($name='default'){
-            $connection = self::getConnection($name);
-            $connection->rollBack();
-        }
-
-        /**
-         * 提交事务
-         * @param string $name
-         */
-        public static function commit($name='default'){
-            $connection = self::getConnection($name);
-            $connection->commit();
-        }
-
-        /**
-         * 获取连接所用的PDO
-         * @param string $name
-         * @param string $type
-         * @return PDO
-         */
-        public static function getPdo($name='default', $type='read'){
-            $connection = self::getConnection($name);
-            return $connection->getPdo($type);
-        }
-
-        /**
-         * 获取错误信息，由code和info组合。
-         * @param string $name
-         * @return string
-         */
-        public static function getError($name='default'){
-            $connection = self::getConnection($name);
-            return $connection->error;
-        }
-
-        /**
-         * 获取上一次执行{insert,update,delete}所影响的行数
-         * 注意：即使执行SQL成功，若字段值相比之前的没有任何改变，那么影响行数＝0，仅在数据发生改变时，才会大于0
-         * @param string $name
-         * @return int
-         */
-        public static function rowCount($name='default'){
-            $connection = self::getConnection($name);
-            return $connection->rowCount;
-        }
-
-        /**
-         * 直接执行sql语句返回结果
-         * @param $sql
-         * @param int $model
-         * @param string $name
-         * @return void|array
-         */
-        public static function get($sql, $model=PDO::FETCH_ASSOC, $name='default'){
-            $pdo = self::getPdo($name);
-            if($result = $pdo->query($sql)){
-                $result->setFetchMode($model);
-                return $result->fetchAll();
-            }else{
-                echo "code : ".$pdo->errorCode()."<br>error : ".$pdo->errorInfo()[2]."<br>query : ".$sql;
-                exit;
-            }
-        }
-
-        /**
-         * 获取一条记录
-         * @param $sql
-         * @param $model
-         * @param string $name
-         * @return array|void
-         */
-        public static function getOne($sql, $model=PDO::FETCH_ASSOC, $name='default'){
-            $pdo = self::getPdo($name);
-            if($result = $pdo->query($sql)){
-                $result->setFetchMode($model);
-                return $result->fetch();
-            }else{
-                echo "code : ".$pdo->errorCode()."<br>error : ".$pdo->errorInfo()[2]."<br>query : ".$sql;
-                exit;
-            }
-        }
-
-        /**
-         * 获取字段列表
-         * @param $sql
-         * @param $field
-         * @param string $name
-         * @return array
-         */
-        public static function lists($sql, $field, $name='default'){
-            if($data = self::get($sql, PDO::FETCH_ASSOC, $name)){
-                $list = array();
-                foreach($data as $d){
-                    if(isset($d[$field])){
-                        $list[] = $d[$field];
-                    }
+    /**
+     * 记录日志，一般是记录错误信息
+     * @param string $text 日志内容
+     * @param bool $output 是否要输出给用户看
+     */
+    public static function log($text, $output=false){
+        if(!empty($text)){
+            $dir = defined('RUNTIME') ? RUNTIME."/db" : (defined('ROOT') ? ROOT."/runtime/db" : __DIR__."/runtime/db");
+            if(!is_dir($dir)){
+                if(!@mkdir($dir, 0777, true)){
+                    echo "目录不可创建：{$dir}".PHP_EOL;
                 }
-                return $list;
-            }else{
-                return array();
+            }
+            $f = fopen($dir."/error.txt", "a");
+            if($f){
+                @fwrite($f, "时间：".date("Y/m/d H:i:s", time())."\r\n  ".$text."\r\n\r\n");
+                @fclose($f);
             }
         }
-
-        /**
-         * 获取1条记录
-         * @param $sql
-         * @param string $name
-         * @return array|void
-         */
-        public static function first($sql, $name='default'){
-            $sql .= " limit 0,1";
-            $pdo = self::getPdo($name);
-            if($result = $pdo->query($sql)){
-                $result->setFetchMode(PDO::FETCH_ASSOC);
-                $row = $result->fetchAll();
-                return !empty($row) ? end($row) : array();
-            }else{
-                echo "code : ".$pdo->errorCode()."<br>error : ".$pdo->errorInfo()[2]."<br>query : ".$sql;
-                exit;
-            }
+        if($output || defined("DB_SWOOLE_POOLS")){
+            $text = str_replace("\r\n", "<br>", $text);
+            echo $text.PHP_EOL;
         }
+    }
 
-        /**
-         * 执行sql语句
-         * @param $sql
-         * @param string $name
-         * @param string $type
-         * @return bool
-         * @return array|void
-         */
-        public static function execute($sql, $name='default', $type='write'){
-            $pdo = self::getPdo($name, $type);
-            $connection = self::getConnection($name);
-            $rows = $pdo->exec($sql);
-            $rows = $rows===0 ? true : $rows;
-            if($rows){
-                $connection->error = '';
-                return $rows;
+    /**
+     * 数据库连接对象（静态对象，保证全局只使用一次连接）
+     * @var Connection
+     */
+    private static $connection = null;
+
+    /**
+     * 连接池
+     * @var \Small\DB\Swoole\Connection[]
+     */
+    private static $connections = [];
+
+    /**
+     * 获取数据库连接对象
+     * @return Connection
+     */
+    public static function getConnection(){
+        if(defined("DB_SWOOLE_POOLS")){
+            $cid = Coroutine::getCid();
+            if(isset(self::$connections[$cid]) && self::$connections[$cid] instanceof \Small\DB\Swoole\Connection){
+                return self::$connections[$cid];
+            }
+            self::$connections[$cid] = Pool::getPool();
+            //协程退出时会执行
+            Coroutine::defer(function () use ($cid){
+                unset(self::$connections[$cid]);
+            });
+            return self::$connections[$cid];
+        }else{
+            if(is_null(self::$connection)){
+                self::$connection = new Connection(self::getConfig());
+            }
+            return self::$connection;
+        }
+    }
+
+    /**
+     * 事务开始
+     */
+    public static function begin()
+    {
+        self::getConnection()->begin();
+    }
+
+    /**
+     * 事务回滚
+     */
+    public static function rollback()
+    {
+        self::getConnection()->rollback();
+    }
+
+    /**
+     * 提交事务
+     */
+    public static function commit(){
+        self::getConnection()->commit();
+    }
+
+    /**
+     *
+     * @param string $type
+     * @return PDO
+     */
+    public static function getPdo($type = 'read'){
+        return self::getConnection()->getPdo($type);
+    }
+
+    /**
+     * 执行SQL语句
+     * @param $sql
+     * @param array $params
+     * @return int
+     */
+    public static function execute($sql, $params = []){
+        $con = self::getConnection();
+        $sql = trim($sql);
+        $pdo = $con->getPdo(stripos($sql, "SELECT") === 0 ? "read" : "write");
+        if(defined("DB_SWOOLE_POOLS")){
+            $stmt = $pdo->prepare($sql);
+            if($stmt !== false){
+                return $stmt->execute($params);
             }else{
-                $connection->error = "code : ".$pdo->errorCode()."<br>error : ".$pdo->errorInfo()[2]."<br>query : ".$sql;
+                return false;
+            }
+        }else{
+            try{
+                $stm = $pdo->prepare($sql);
+                if($stm->execute($params)){
+                    return $stm->rowCount();
+                }else{
+                    $code = intval($stm->errorCode());
+                    throw new PDOException($stm->errorInfo()[2]."<br>query : ".$stm->queryString."<br>code source : ".$code, intval($code));
+                }
+            }catch (PDOException $exception){
+                $con->setError($exception->getCode(), $exception->errorInfo);
                 return false;
             }
         }
+    }
 
-        /**
-         * 获取连接
-         * @param string $name
-         * @return bool|Connection
-         */
-        public static function getConnection($name='default'){
-            return isset(self::$connections[$name]) ? self::$connections[$name] : false;
-        }
-
-        /**
-         * 销毁连接
-         * @param string $name
-         */
-        public static function destroy($name='default'){
-            if(isset(self::$connections[$name])){
-                unset(self::$connections[$name]);
-            }
-        }
-
-        /**
-         * 获取版本信息
-         * @param string $name
-         * @return mixed
-         */
-        public static function getVersion($name='default'){
-            $result = self::first('select VERSION() version', $name);
-            return $result['version'];
-        }
-
-        /**
-         * 获取对应数据库的所有表名
-         * @param int $cutPrefix
-         * @param string $name
-         * @return array
-         */
-        public static function getTables($cutPrefix=0, $name="default"){
-            $list = self::from('INFORMATION_SCHEMA.COLUMNS')->where('TABLE_SCHEMA', self::getDBName($name))->lists('TABLE_NAME', 1);
-            //去除前缀
-            if($cutPrefix){
-                $result = [];
-                $prefix = self::getTablePrefix($name);
-                foreach ($list as $l){
-                    $result[] = substr($l, strlen($prefix));
-                }
-                return $result;
-            }
-            return $list;
-        }
-
-        /**
-         * 获取表的字段列表
-         * @param $tableName
-         * @param string $name
-         * @return array
-         */
-        public static function getFieldsListFromTable($tableName, $name='default'){
-            return self::from('INFORMATION_SCHEMA.COLUMNS')->where('TABLE_SCHEMA', self::getDBName($name))->where('TABLE_NAME', self::getTablePrefix().$tableName)->lists('COLUMN_NAME', 1);
-        }
-
-        /**
-         * 记录日志，一般是记录错误信息
-         * @param string $text 日志内容
-         * @param bool $output 是否要输出给用户看
-         */
-        public static function log($text, $output=false){
-            if(!empty($text)){
-                $dir = defined('RUNTIME') ? RUNTIME."/db" : (defined('ROOT') ? ROOT."/data/log" : __DIR__."/Log");
-                if(!is_dir($dir)){
-                    if(!@mkdir($dir)){
-                        exit("<font style='font-size:12px;'>目录不可创建：{$dir}</font>");
-                    }
-                }
-                $f = fopen($dir."/error.txt", "a");
-                if($f){
-                    @fwrite($f, "时间：".date("Y/m/d H:i:s", time())."\r\n  ".$text."\r\n");
-                    @fclose($f);
-                }
-            }
-            if($output){
-                $text = str_replace("\r\n", "<br>", $text);
-                exit("<font style='font-size:12px;'>{$text}</font>");
-            }
-        }
-
+    /**
+     * 获取表名前缀
+     * @return mixed|string
+     */
+    public static function getTablePrefix(){
+        $config = self::getConfig();
+        return $config["prefix"] ?? "pre_";
     }
 }

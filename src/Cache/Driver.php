@@ -9,7 +9,7 @@
 // | Author: liu21st <liu21st@gmail.com>
 // +----------------------------------------------------------------------
 
-namespace DB\Cache;
+namespace Small\DB\Cache;
 
 /**
  * 缓存基础类
