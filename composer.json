@@ -1,5 +1,5 @@
 {
-    "name": "lulanyin/db",
+    "name": "inphp/db",
     "description": "PHP数据库操作类",
     "version" : "1.01",
     "keywords": [
