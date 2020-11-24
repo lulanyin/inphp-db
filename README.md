@@ -2,7 +2,7 @@
 
 ### 安装方式
 ```
-composer require lulanyin/inphp-db
+composer require lulanyin/db
 ```
 
 ### 使用方式
