@@ -1,15 +1,15 @@
 <?php
-namespace Small\DB;
+namespace Inphp\DB;
 
 use PDO;
 use PDOException;
-use Small\DB\Swoole\Pool;
+use Inphp\DB\Swoole\Pool;
 use Swoole\Coroutine;
 
 /**
  *
  * Class DB
- * @package Small\DB
+ * @package Inphp\DB
  */
 class DB
 {
@@ -37,7 +37,7 @@ class DB
      */
     public static function from($table, $as = null)
     {
-        $query = defined("DB_SWOOLE_POOLS") ? new \Small\DB\Swoole\Query() : new Query();
+        $query = defined("DB_SWOOLE_POOLS") ? new \Inphp\DB\Swoole\Query() : new Query();
         return $query->from($table, $as);
     }
 
@@ -74,7 +74,7 @@ class DB
 
     /**
      * 连接池
-     * @var \Small\DB\Swoole\Connection[]
+     * @var \Inphp\DB\Swoole\Connection[]
      */
     private static $connections = [];
 
@@ -85,7 +85,7 @@ class DB
     public static function getConnection(){
         if(defined("DB_SWOOLE_POOLS")){
             $cid = Coroutine::getCid();
-            if(isset(self::$connections[$cid]) && self::$connections[$cid] instanceof \Small\DB\Swoole\Connection){
+            if(isset(self::$connections[$cid]) && self::$connections[$cid] instanceof \Inphp\DB\Swoole\Connection){
                 return self::$connections[$cid];
             }
             self::$connections[$cid] = Pool::getPool();

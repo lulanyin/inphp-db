@@ -3,18 +3,18 @@
  * Create By Hunter
  * 2019/10/6 01:29:54
  */
-namespace Small\DB\Swoole;
+namespace Inphp\DB\Swoole;
 
 use Swoole\Coroutine;
 
-class DB extends \Small\DB\DB
+class DB extends \Inphp\DB\DB
 {
 
     /**
      * 查询开始
      * @param $tableName
      * @param null $as
-     * @return \Small\DB\Swoole\Query
+     * @return \Inphp\DB\Swoole\Query
      */
     public static function from($tableName, $as = null){
         return (new Query())->from($tableName, $as);

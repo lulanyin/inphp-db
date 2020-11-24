@@ -1,7 +1,7 @@
 <?php
-namespace Small\DB;
+namespace Inphp\DB;
 
-use Small\DB\Cache\driver\Redis;
+use Inphp\DB\Cache\driver\Redis;
 
 class Cache{
 
@@ -83,7 +83,7 @@ class Cache{
      * @return Redis
      */
     public static function connect($int = 0){
-        self::$redisList[$int] = \Small\DB\Redis::newRedis($int);
+        self::$redisList[$int] = \Inphp\DB\Redis::newRedis($int);
         if(!self::$active){
             self::$active = $int;
         }
@@ -99,7 +99,7 @@ class Cache{
         $int = is_null($int) ? 0 : $int;
         //echo $int.PHP_EOL;
         if(!isset(self::$redisList[$int])){
-            self::$redisList[$int] = \Small\DB\Redis::newRedis($int);
+            self::$redisList[$int] = \Inphp\DB\Redis::newRedis($int);
         }
         return self::$redisList[$int];
     }

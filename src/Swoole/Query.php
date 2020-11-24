@@ -3,11 +3,11 @@
  * Create By Hunter
  * 2019/10/6 00:46:31
  */
-namespace Small\DB\Swoole;
+namespace Inphp\DB\Swoole;
 
 use Swoole\Coroutine\MySQL;
 
-class Query extends \Small\DB\Query{
+class Query extends \Inphp\DB\Query{
 
     /**
      * @var Connection

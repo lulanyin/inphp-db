@@ -1,11 +1,11 @@
 <?php
-namespace Small\DB\Model;
+namespace Inphp\DB\Model;
 
 
 /**
  * 数据库模型基类
  * Class ModelBase
- * @package Small\Model
+ * @package Inphp\DB\Model
  */
 abstract class ModelBase {
 
@@ -17,7 +17,7 @@ abstract class ModelBase {
 
     /**
      * Query对象
-     * @var \Small\DB\Query|\Small\DB\Swoole\Query
+     * @var \Inphp\DB\Query|\Inphp\DB\Swoole\Query
      */
     protected $db = null;
 
@@ -119,7 +119,7 @@ abstract class ModelBase {
      * @return mixed
      */
     public function getTableName($full = false){
-        return ($full ? \Small\DB\DB::getTablePrefix() : "").$this->tableName;
+        return ($full ? \Inphp\DB\DB::getTablePrefix() : "").$this->tableName;
     }
 
     /**
@@ -179,7 +179,7 @@ abstract class ModelBase {
      * 动态重载方法
      * @param $method
      * @param $arguments
-     * @return \Small\DB\Query|\Small\DB\Swoole\Query
+     * @return \Inphp\DB\Query|\Inphp\DB\Swoole\Query
      */
     public function __call($method, $arguments)
     {
@@ -238,19 +238,19 @@ abstract class ModelBase {
 
     /**
      * 获取一个新的连接
-     * @return \Small\DB\Query|\Small\DB\Swoole\Query
+     * @return \Inphp\DB\Query|\Inphp\DB\Swoole\Query
      */
     private function getNewDB(){
         if(!is_null($this->db)){
             return $this->db->newQuery();
         }
-        return $this->pool ? (new \Small\DB\Swoole\Query()) : (new \Small\DB\Query());
+        return $this->pool ? (new \Inphp\DB\Swoole\Query()) : (new \Inphp\DB\Query());
     }
 
     /**
      * 主表的Query对象
      * @param bool $as
-     * @return \Small\DB\Query|\Small\DB\Swoole\Query|null
+     * @return \Inphp\DB\Query|\Inphp\DB\Swoole\Query|null
      */
     public function mainQuery($as=false){
         $db = $this->getNewDB();
@@ -265,7 +265,7 @@ abstract class ModelBase {
 
     /**
      * 返回一个空的Query
-     * @return \Small\DB\Query|\Small\DB\Swoole\Query
+     * @return \Inphp\DB\Query|\Inphp\DB\Swoole\Query
      */
     public function emptyQuery(){
         return $this->getNewDB();

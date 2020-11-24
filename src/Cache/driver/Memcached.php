@@ -9,9 +9,9 @@
 // | Author: liu21st <liu21st@gmail.com>
 // +----------------------------------------------------------------------
 
-namespace Small\DB\Cache\driver;
+namespace Inphp\DB\Cache\driver;
 
-use Small\DB\Cache\Driver;
+use Inphp\DB\Cache\Driver;
 
 class Memcached extends Driver
 {

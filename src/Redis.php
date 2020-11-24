@@ -1,5 +1,5 @@
 <?php
-namespace Small\DB;
+namespace Inphp\DB;
 
 class Redis{
 

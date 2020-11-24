@@ -1,5 +1,5 @@
 {
-    "name": "lulanyin/db",
+    "name": "lulanyin/inphp-db",
     "description": "PHP数据库操作类",
     "version" : "1.01",
     "keywords": [
@@ -25,7 +25,7 @@
     "license": "MIT",
     "autoload": {
         "psr-4": {
-            "Small\\DB\\": "src/"
+            "Inphp\\DB\\": "src/"
         }
     },
     "repositories": {

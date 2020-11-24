@@ -3,7 +3,7 @@
  * Create By Hunter
  * 2019/10/6 00:54:24
  */
-namespace Small\DB\Swoole;
+namespace Inphp\DB\Swoole;
 
 use Swoole\Coroutine\Channel;
 

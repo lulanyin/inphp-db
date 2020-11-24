@@ -3,7 +3,7 @@
  * Create By Hunter
  * 2019-07-29 16:33:45
  */
-namespace Small\DB;
+namespace Inphp\DB;
 
 use PDO;
 use PDOException;
@@ -12,7 +12,7 @@ use PDOStatement;
 /**
  * sql 语法处理
  * Class Grammar
- * @package Small\DB
+ * @package Inphp\DB
  */
 class Grammar
 {

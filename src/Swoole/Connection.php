@@ -3,12 +3,12 @@
  * Create By Hunter
  * 2019/10/6 00:50:49
  */
-namespace Small\DB\Swoole;
+namespace Inphp\DB\Swoole;
 
 use Swoole\Coroutine\MySQL;
-use Small\DB\DB;
+use Inphp\DB\DB;
 
-class Connection extends \Small\DB\Connection
+class Connection extends \Inphp\DB\Connection
 {
     /**
      * @var MySQL[]

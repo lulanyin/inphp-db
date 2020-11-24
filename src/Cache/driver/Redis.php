@@ -9,9 +9,9 @@
 // | Author: liu21st <liu21st@gmail.com>
 // +----------------------------------------------------------------------
 
-namespace Small\DB\Cache\driver;
+namespace Inphp\DB\Cache\driver;
 
-use Small\DB\Cache\Driver;
+use Inphp\DB\Cache\Driver;
 
 /**
  * Redis缓存驱动，适合单机部署、有前端代理实现高可用的场景，性能最好

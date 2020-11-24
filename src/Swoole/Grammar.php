@@ -3,10 +3,10 @@
  * Create By Hunter
  * 2019/10/6 00:47:44
  */
-namespace Small\DB\Swoole;
+namespace Inphp\DB\Swoole;
 
 
-class Grammar extends \Small\DB\Grammar
+class Grammar extends \Inphp\DB\Grammar
 {
     /**
      * @var Query

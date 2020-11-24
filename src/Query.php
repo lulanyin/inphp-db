@@ -3,16 +3,16 @@
  * Create By Hunter
  * 2019-07-29 14:05:49
  */
-namespace Small\DB;
+namespace Inphp\DB;
 
 use Closure;
 use PDO;
-use Small\DB\Model\ModelBase;
+use Inphp\DB\Model\ModelBase;
 
 /**
  * sql 操作对象
  * Class Query
- * @package Small\DB
+ * @package Inphp\DB
  */
 class Query
 {

@@ -3,7 +3,7 @@
  * Create By Hunter
  * 2019-07-29 01:20
  */
-namespace Small\DB;
+namespace Inphp\DB;
 
 use PDO;
 use PDOException;
@@ -11,7 +11,7 @@ use PDOException;
 /**
  * 数据库连接类
  * Class Connection
- * @package Small\DB
+ * @package Inphp\DB
  */
 class Connection {
 
