@@ -31,16 +31,7 @@ class DB extends \Inphp\DB\DB
      */
     public static function getConnection()
     {
-        $cid = Coroutine::getCid();
-        if(isset(self::$connections[$cid]) && self::$connections[$cid] instanceof Connection){
-            return self::$connections[$cid];
-        }
-        self::$connections[$cid] = Pool::getPool();
-        //协程退出时会执行
-        Coroutine::defer(function () use ($cid){
-            unset(self::$connections[$cid]);
-        });
-        return self::$connections[$cid];
+        return Pool::getPool();
     }
 
     /**

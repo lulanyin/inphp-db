@@ -83,8 +83,6 @@ class Connection extends \Inphp\DB\Connection
     public function getPdo($type = 'read')
     {
         $mysql = $this->pdo[$type] ?? $this->connect(null, $type);
-        print_r($mysql);
-        echo PHP_EOL;
         if(is_null($mysql)){
             return $this->connect($type);
         }elseif(!$mysql->connected){

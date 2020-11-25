@@ -84,16 +84,7 @@ class DB
      */
     public static function getConnection(){
         if(defined("DB_SWOOLE_POOLS")){
-            $cid = Coroutine::getCid();
-            if(isset(self::$connections[$cid]) && self::$connections[$cid] instanceof \Inphp\DB\Swoole\Connection){
-                return self::$connections[$cid];
-            }
-            self::$connections[$cid] = Pool::getPool();
-            //协程退出时会执行
-            Coroutine::defer(function () use ($cid){
-                unset(self::$connections[$cid]);
-            });
-            return self::$connections[$cid];
+            return \Inphp\DB\Swoole\DB::getConnection();
         }else{
             if(is_null(self::$connection)){
                 self::$connection = new Connection(self::getConfig());

@@ -95,8 +95,9 @@ class Cache{
      * @return Redis
      */
     public static function getConnection($int = null){
+        $config = DB::getConfig();
         $int = is_null($int) ? self::$active : $int;
-        $int = is_null($int) ? 0 : $int;
+        $int = is_null($int) ? $config['redis']['select'] : $int;
         //echo $int.PHP_EOL;
         if(!isset(self::$redisList[$int])){
             self::$redisList[$int] = \Inphp\DB\Redis::newRedis($int);
