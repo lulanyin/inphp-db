@@ -19,6 +19,15 @@ class Redis{
         return self::$redis[$int];
     }
 
+    /**
+     * 获取redis操作对象
+     * @param int $int
+     * @return Cache\driver\Redis
+     */
+    public static function get($int = 0){
+        return self::init($int);
+    }
+
     public static function newRedis($int = 0){
         $config = DB::getConfig();
         $config = $config['redis'] ?? [];
