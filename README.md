@@ -10,10 +10,10 @@ composer require inphp/db
 //config.php
 
 //定义数据库配置文件或配置，填写文件路径（*推荐*）
-define("DB_CONFIG", ROOT."/config/private/mysql.php");
+define("INPHP_DB_CONFIG", ROOT."/config/private/mysql.php");
 
 //或者可以直接设置为值
-define("DB_CONFIG", ["值请参考下方 return 之后的数组"]);
+define("INPHP_DB_CONFIG", ["值请参考下方 return 之后的数组"]);
 
 //数据库配置文件 ROOT."/config/private/mysql.php"
 return [

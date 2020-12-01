@@ -3,7 +3,6 @@ namespace Inphp\DB;
 
 use PDO;
 use PDOException;
-use Inphp\DB\Swoole\Pool;
 use Swoole\Coroutine;
 
 /**
@@ -24,8 +23,8 @@ class DB
         if(!empty(self::$config)){
             return self::$config;
         }
-        if(defined("DB_CONFIG")){
-            self::$config = is_string(DB_CONFIG) ? (is_file(DB_CONFIG) ? require(DB_CONFIG) : []) : (is_array(DB_CONFIG) ? DB_CONFIG : []);
+        if(defined("INPHP_DB_CONFIG")){
+            self::$config = is_string(INPHP_DB_CONFIG) ? (is_file(INPHP_DB_CONFIG) ? require(INPHP_DB_CONFIG) : []) : (is_array(INPHP_DB_CONFIG) ? INPHP_DB_CONFIG : []);
         }
         return self::$config;
     }
@@ -37,7 +36,7 @@ class DB
      */
     public static function from($table, $as = null)
     {
-        $query = defined("DB_SWOOLE_POOLS") ? new \Inphp\DB\Swoole\Query() : new Query();
+        $query = defined("INPHP_DB_SWOOLE_POOLS") ? new \Inphp\DB\Swoole\Query() : new Query();
         return $query->from($table, $as);
     }
 
@@ -60,7 +59,7 @@ class DB
                 @fclose($f);
             }
         }
-        if($output || defined("DB_SWOOLE_POOLS")){
+        if($output || defined("INPHP_DB_SWOOLE_POOLS")){
             $text = str_replace("\r\n", "<br>", $text);
             echo $text.PHP_EOL;
         }
@@ -83,7 +82,7 @@ class DB
      * @return Connection
      */
     public static function getConnection(){
-        if(defined("DB_SWOOLE_POOLS")){
+        if(defined("INPHP_DB_SWOOLE_POOLS")){
             return \Inphp\DB\Swoole\DB::getConnection();
         }else{
             if(is_null(self::$connection)){
@@ -135,7 +134,7 @@ class DB
         $con = self::getConnection();
         $sql = trim($sql);
         $pdo = $con->getPdo(stripos($sql, "SELECT") === 0 ? "read" : "write");
-        if(defined("DB_SWOOLE_POOLS")){
+        if(defined("INPHP_DB_SWOOLE_POOLS")){
             $stmt = $pdo->prepare($sql);
             if($stmt !== false){
                 return $stmt->execute($params);

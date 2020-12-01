@@ -102,7 +102,7 @@ class Pool
      */
     public static function init(){
         if(null == self::$MysqlPool){
-            $size = defined("DB_SWOOLE_POOLS") ? DB_SWOOLE_POOLS : 5;
+            $size = defined("INPHP_DB_SWOOLE_POOLS") ? INPHP_DB_SWOOLE_POOLS : 5;
             $size = is_numeric($size) && $size>0 ? intval($size) : 5;
             self::$MysqlPool = new Pool($size);
         }
