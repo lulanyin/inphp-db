@@ -6,11 +6,6 @@ use Inphp\DB\Cache\driver\Redis;
 class Cache{
 
     /**
-     * @var Redis[]
-     */
-    private static $redisList = [];
-
-    /**
      * 默认激活的连接
      * @var null
      */
@@ -74,7 +69,7 @@ class Cache{
      * @return Redis
      */
     public static function select($int = null){
-        return self::getConnection($int ?? self::$active);
+        return self::getConnection($int);
     }
 
     /**
@@ -82,12 +77,8 @@ class Cache{
      * @param int $int
      * @return Redis
      */
-    public static function connect($int = 0){
-        self::$redisList[$int] = \Inphp\DB\Redis::newRedis($int);
-        if(!self::$active){
-            self::$active = $int;
-        }
-        return self::$redisList[$int];
+    public static function connect($int = null){
+        return self::getConnection($int);
     }
 
     /**
@@ -98,10 +89,7 @@ class Cache{
         $config = DB::getConfig();
         $int = is_null($int) ? self::$active : $int;
         $int = is_null($int) ? $config['redis']['select'] : $int;
-        //echo $int.PHP_EOL;
-        if(!isset(self::$redisList[$int])){
-            self::$redisList[$int] = \Inphp\DB\Redis::newRedis($int);
-        }
-        return self::$redisList[$int];
+        self::$active = $int;
+        return \Inphp\DB\Redis::get($int);
     }
 }
