@@ -68,7 +68,7 @@ return [
 
 ### 支持 Swoole，在 Swoole 服务中请务必设置此常量，数值为连接池的最连接数量
 ```php
-define("DB_SWOOLE_POOLS", 10);
+define("INPHP_DB_SWOOLE_POOLS", 10);
 ```
 
 ### 错误日志文件
