@@ -199,6 +199,20 @@ abstract class ModelBase {
     }
 
     /**
+     * 开始查询
+     * @return \Inphp\DB\Query|\Inphp\DB\Swoole\Query
+     */
+    public function startQuery(){
+        $db = $this->mainQuery(1);
+        if(!empty($this->join)){
+            foreach ($this->join as $k=>$j){
+                $db = $db->join($j, $this->joinWhere[$k], $this->joinType[$k]);
+            }
+        }
+        return $db;
+    }
+
+    /**
      * 新数据插入
      * @param array $data
      * @return int
