@@ -1,7 +1,7 @@
 {
     "name": "inphp/db",
     "description": "PHP数据库操作类",
-    "version" : "1.01",
+    "version" : "1.9.2",
     "keywords": [
         "db",
         "PHP数据库操作类"
