@@ -222,6 +222,14 @@ abstract class ModelBase {
     }
 
     /**
+     * 静态查询方法
+     * @return \Inphp\DB\Query|\Inphp\DB\Swoole\Query|null
+     */
+    public static function query(){
+        return (new static())->startQuery();
+    }
+
+    /**
      * 新数据插入
      * @param array $data
      * @return int
